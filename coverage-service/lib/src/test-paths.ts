@@ -58,12 +58,8 @@ export function testFileBasenameMatchesSource(
   return testBase === sourceBase;
 }
 
-/** Infer a test file path for JS/TS — prefers src/.../__tests__/ (Jest roots). */
+/** Infer a test file path for JS/TS — prefers the tests/ mirror (Jest roots). */
 export function inferJavaScriptTestFilePath(sourceFile: string): string {
-  const nested = nestedJavaScriptTestPaths(sourceFile);
-  const colocated = nested.find((p) => p.includes('/__tests__/'));
-  if (colocated) return colocated;
-
   const ext = sourceFileExtension(sourceFile);
   const withoutExt = sourceFile.replace(/\.(js|jsx|ts|tsx)$/, '');
 
@@ -110,7 +106,7 @@ export function inferTestFilePath(sourceFile: string, framework: string): string
   return inferJavaScriptTestFilePath(sourceFile);
 }
 
-/** All plausible test paths for a source file (__tests__ colocated first). */
+/** All plausible test paths for a source file (tests/ mirror first). */
 export function orderedTestFileCandidates(
   sourceFile: string,
   framework: string,
@@ -123,11 +119,11 @@ export function orderedTestFileCandidates(
     candidates.push(path);
   };
 
+  add(inferTestFilePath(sourceFile, framework));
+
   for (const path of nestedJavaScriptTestPaths(sourceFile)) {
     add(path);
   }
-
-  add(inferTestFilePath(sourceFile, framework));
 
   for (const path of colocatedJavaScriptTestPaths(sourceFile)) {
     add(path);

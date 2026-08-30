@@ -84,7 +84,7 @@ describe('RLM Runner', () => {
 
   it('finishes when LLM outputs finish_review', async () => {
     llmResponses = [
-      'I have analyzed the code. finish_review',
+      'I have analyzed the code.\nfinish_review',
       // Finalization response
       JSON.stringify([
         {
@@ -185,5 +185,22 @@ describe('RLM Runner', () => {
     expect(findings).toHaveLength(1);
     expect(findings[0].citations).toHaveLength(2);
     expect(findings[0].severity).toBe('investigate');
+  });
+
+  it('does not finalize when finish_review only appears mid-sentence', async () => {
+    llmResponses = [
+      'I should not call finish_review yet, more to check.',
+      'finish_review',
+      '[]',
+    ];
+
+    const { runRLM } = await import('../../../core/src/review/rlm-runner.js');
+    const pr = createMockPR();
+    const snapshot = createMockSnapshot({ 'src/index.ts': 'const x = 1;\n' });
+
+    await runRLM(pr, snapshot);
+    // A false match on iteration 1 would finalize after 2 LLM calls (reason + finalize).
+    // The real, standalone signal only arrives on iteration 2, so it takes 3.
+    expect(llmCallCount).toBe(3);
   });
 });

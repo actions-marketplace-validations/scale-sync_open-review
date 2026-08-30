@@ -6,8 +6,11 @@ import {
   Headers,
   HttpCode,
   Post,
+  Req,
   UnauthorizedException,
+  type RawBodyRequest,
 } from '@nestjs/common';
+import type { Request } from 'express';
 
 import { WebhooksService } from './webhooks.service';
 
@@ -20,9 +23,10 @@ export class WebhooksController {
   async handleGitHub(
     @Headers('x-github-event') event: string,
     @Headers('x-hub-signature-256') signature: string,
+    @Req() req: RawBodyRequest<Request>,
     @Body() payload: Record<string, unknown>,
   ) {
-    this.verifySignature(JSON.stringify(payload), signature);
+    this.verifySignature(req.rawBody, signature);
 
     if (event === 'pull_request') {
       return this.webhooksService.handlePullRequest(payload);
@@ -37,16 +41,29 @@ export class WebhooksController {
     return { received: true, event };
   }
 
-  private verifySignature(body: string, signature?: string) {
+  /**
+   * Verify against the raw request bytes, not a re-serialized JSON.stringify
+   * of the parsed body — GitHub signs the exact bytes it sent, and re-encoding
+   * (key order, whitespace, unicode escaping) will not byte-match in general.
+   */
+  private verifySignature(rawBody: Buffer | undefined, signature?: string) {
     const secret = process.env.WEBHOOK_SECRET;
-    if (!secret) return;
+    if (!secret) {
+      throw new UnauthorizedException(
+        'WEBHOOK_SECRET is not configured — refusing to accept unauthenticated webhooks',
+      );
+    }
+
+    if (!rawBody) {
+      throw new UnauthorizedException('Missing raw request body');
+    }
 
     if (!signature) {
       throw new UnauthorizedException('Missing webhook signature');
     }
 
     const expected =
-      'sha256=' + createHmac('sha256', secret).update(body).digest('hex');
+      'sha256=' + createHmac('sha256', secret).update(rawBody).digest('hex');
 
     const sigBuffer = Buffer.from(signature);
     const expBuffer = Buffer.from(expected);

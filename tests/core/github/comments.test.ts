@@ -9,6 +9,7 @@ function makeMockClient() {
     get: vi.fn(),
     post: vi.fn(),
     patch: vi.fn(),
+    delete: vi.fn(),
   };
 
   const client = {
@@ -172,7 +173,7 @@ describe('postCoverageComment', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
-  it('posts a new coverage comment when a newer timeline comment exists', async () => {
+  it('deletes the stale coverage comment and posts a new one when a newer timeline comment exists', async () => {
     const { client, api } = makeMockClient();
     const poster = new CommentPoster(client);
     api.get
@@ -183,9 +184,13 @@ describe('postCoverageComment', () => {
         data: [{ id: 300, body: '<!-- openreview:coverage -->\nold' }],
       });
     api.post.mockResolvedValue({ data: {} });
+    api.delete.mockResolvedValue({ data: {} });
 
     await poster.postCoverageComment(7, '<!-- openreview:coverage -->\nnew');
 
+    expect(api.delete).toHaveBeenCalledWith(
+      '/repos/test-owner/test-repo/issues/comments/300',
+    );
     expect(api.post).toHaveBeenCalledOnce();
     expect(api.patch).not.toHaveBeenCalled();
   });
@@ -225,7 +230,7 @@ describe('postSummaryComment', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
-  it('posts a new summary when newer timeline comments exist', async () => {
+  it('deletes the stale summary and posts a new one when newer timeline comments exist', async () => {
     const { client, api } = makeMockClient();
     const poster = new CommentPoster(client);
     api.get
@@ -238,9 +243,15 @@ describe('postSummaryComment', () => {
         ],
       });
     api.post.mockResolvedValue({ data: {} });
+    api.delete.mockResolvedValue({ data: {} });
 
     await poster.postSummaryComment(7, makeSummary(2));
 
+    // Without this, every subsequent push appends a new summary instead of
+    // replacing the old one — the exact "replace-not-duplicate" regression.
+    expect(api.delete).toHaveBeenCalledWith(
+      '/repos/test-owner/test-repo/issues/comments/300',
+    );
     expect(api.post).toHaveBeenCalledOnce();
     expect(api.patch).not.toHaveBeenCalled();
   });

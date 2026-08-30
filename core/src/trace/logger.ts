@@ -27,7 +27,8 @@ export interface TraceMeta {
 
 const SECRET_PATTERNS = [
   /(?:api[_-]?key|token|secret|password|credential|auth)[\s]*[:=]\s*["']?[^\s"',}{]+/gi,
-  /sk-[a-zA-Z0-9]{20,}/g, // OpenAI keys
+  /sk-[a-zA-Z0-9_-]{20,}/g, // OpenAI + Anthropic keys (Anthropic's sk-ant-... contains hyphens)
+  /AIza[0-9A-Za-z_-]{35}/g, // Google/Gemini API keys
   /ghp_[a-zA-Z0-9]{36}/g, // GitHub PATs
   /ghs_[a-zA-Z0-9]{36}/g, // GitHub app tokens
   /xoxb-[0-9]+-[a-zA-Z0-9]+/g, // Slack tokens

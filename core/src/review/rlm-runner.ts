@@ -290,9 +290,13 @@ function shouldContinue(state: RLMStateType): 'finalize' | 'code_writer' {
     return 'finalize';
   }
 
-  // Check if LLM called finish_review
+  // Check if the LLM signaled it's done. Match only a standalone
+  // FINISH_REVIEW line (like the FETCH_FILE: directive convention) rather than
+  // a bare substring — "finish_review" can otherwise appear inside the
+  // model's own prose (e.g. "I should not call finish_review yet") and
+  // trigger a false finalize.
   const lastMessage = state.messages[state.messages.length - 1];
-  if (lastMessage && lastMessage.content.includes('finish_review')) {
+  if (lastMessage && /^\s*finish_review\s*$/im.test(lastMessage.content)) {
     return 'finalize';
   }
 
@@ -397,7 +401,7 @@ function buildRLMSystemPrompt(pr: PRContext, sandboxAvailable: boolean): string 
       'Instead, analyze the code through reasoning only:',
       '1. Read the diff and file contents provided in GLOBALS carefully',
       '2. Reason about bugs, security issues, logic errors, and quality problems',
-      '3. Call finish_review once you have identified all issues',
+      '3. Output FINISH_REVIEW once you have identified all issues',
       '',
       'Focus on thorough reasoning since you cannot execute verification scripts.',
     );
@@ -406,12 +410,12 @@ function buildRLMSystemPrompt(pr: PRContext, sandboxAvailable: boolean): string 
   parts.push(
     '',
     'To request additional files, output: FETCH_FILE: <path>',
-    'To finish the review, output: finish_review',
+    'To finish the review, output FINISH_REVIEW alone on its own line as the last line of your response.',
     '',
     'Efficiency guidelines:',
     '- Each iteration costs time. Investigate multiple concerns per iteration when possible.',
     '- Write focused, concise scripts — avoid unnecessary complexity.',
-    '- Call finish_review as soon as you have sufficient evidence. Do not exhaust all iterations.',
+    '- Output FINISH_REVIEW as soon as you have sufficient evidence. Do not exhaust all iterations.',
     '- Aim to complete your analysis in 4-6 iterations for typical PRs.',
     '',
     `Repository: ${pr.owner}/${pr.repo}`,

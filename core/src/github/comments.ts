@@ -128,14 +128,22 @@ export class CommentPoster {
     const latestIssue = await this.fetchLatestIssueComment(prNumber);
     const marked = await this.findMarkedCommentRecord(prNumber, marker);
 
-    // Update in place only when our summary is already the newest timeline comment.
-    // Otherwise append a fresh comment so results are visible at the bottom.
-    if (marked && latestIssue && marked.id === latestIssue.id) {
-      await this.client['api'].patch(
+    if (marked) {
+      // Already the newest comment — update in place.
+      if (latestIssue && marked.id === latestIssue.id) {
+        await this.client['api'].patch(
+          `/repos/${this.client.owner}/${this.client.repo}/issues/comments/${marked.id}`,
+          { body },
+        );
+        return;
+      }
+
+      // Something newer landed since (a human reply, another bot comment) —
+      // delete the stale marked comment before reposting, otherwise every
+      // subsequent push appends a new summary instead of replacing the one.
+      await this.client['api'].delete(
         `/repos/${this.client.owner}/${this.client.repo}/issues/comments/${marked.id}`,
-        { body },
       );
-      return;
     }
 
     await this.client['api'].post(

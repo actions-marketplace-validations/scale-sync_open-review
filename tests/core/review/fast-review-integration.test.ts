@@ -304,4 +304,40 @@ describe('runFastReview', () => {
     expect(systemContent).toContain('Prefer const over let');
     expect(systemContent).toContain('Team Learnings');
   });
+
+  it('filters non-reviewable files out of the diff even on the small single-chunk path', async () => {
+    const mockInvoke = vi.fn().mockResolvedValue({ content: '[]' });
+    mockCreateMainLLM.mockReturnValue({ invoke: mockInvoke } as never);
+
+    const pr = makePRContext({
+      diff:
+        `diff --git a/src/index.ts b/src/index.ts
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1,3 +1,4 @@
+ line1
++added line
+ line3
+ line4
+` +
+        `diff --git a/package-lock.json b/package-lock.json
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,2 +1,3 @@
+ {
++  "lockfileVersion": 3,
+ }
+`,
+      files: ['src/index.ts', 'package-lock.json'],
+    });
+
+    await runFastReview(pr);
+
+    expect(mockInvoke).toHaveBeenCalled();
+    const prompt = mockInvoke.mock.calls[0][0] as Array<{ role: string; content: string }>;
+    const humanContent = prompt.find((m) => m.role === 'human')!.content;
+    expect(humanContent).toContain('src/index.ts');
+    expect(humanContent).not.toContain('package-lock.json');
+    expect(humanContent).not.toContain('lockfileVersion');
+  });
 });

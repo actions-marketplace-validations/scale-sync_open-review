@@ -130,6 +130,38 @@ describe('TraceLogger — edge cases', () => {
     expect(text).toContain('[REDACTED]');
   });
 
+  it('scrubs Anthropic keys (sk-ant-...)', () => {
+    const logger = createLogger();
+    logger.logRLMIteration(
+      1,
+      'key is sk-ant-api03-abcdefghijklmnopqrstuvwxyz1234567890',
+      null,
+      null,
+    );
+    logger.close();
+
+    const [, content] = mockWriteFileSync.mock.calls[0];
+    const text = content as string;
+    expect(text).not.toContain('sk-ant-api03-abcdefghijklmnopqrstuvwxyz');
+    expect(text).toContain('[REDACTED]');
+  });
+
+  it('scrubs Gemini keys (AIza...)', () => {
+    const logger = createLogger();
+    logger.logRLMIteration(
+      1,
+      'key is AIzaSyD-abcdefghijklmnopqrstuvwxyz01234',
+      null,
+      null,
+    );
+    logger.close();
+
+    const [, content] = mockWriteFileSync.mock.calls[0];
+    const text = content as string;
+    expect(text).not.toContain('AIzaSyD-abcdefghijklmnopqrstuvwxyz01234');
+    expect(text).toContain('[REDACTED]');
+  });
+
   it('scrubs GitHub PATs (ghp_...)', () => {
     const logger = createLogger();
     logger.logRLMIteration(1, 'token=ghp_abcdefghijklmnopqrstuvwxyz0123456789', null, null);

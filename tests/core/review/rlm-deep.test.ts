@@ -103,7 +103,7 @@ describe('RLM Deep — extractCodeBlock behavior', () => {
   });
 
   it('skips sandbox when LLM returns no code block', async () => {
-    llmResponses = ['I see no issues. finish_review', '[]'];
+    llmResponses = ['I see no issues.\nfinish_review', '[]'];
 
     const { runRLM } = await import('../../../core/src/review/rlm-runner.js');
     const pr = createMockPR();

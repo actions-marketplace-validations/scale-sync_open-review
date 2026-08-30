@@ -8,6 +8,34 @@ export interface ShellResult {
   exitCode: number;
 }
 
+/**
+ * Env vars needed to run npm/node/python/git for an untrusted PR checkout —
+ * nothing that could carry a secret (API keys, GitHub tokens, DB/Redis URLs).
+ * `command` here runs attacker-controlled code (package.json scripts, test
+ * files) from a cloned PR branch, so it must never see the parent process's
+ * full environment.
+ */
+const SANDBOX_ENV_KEYS = [
+  'PATH',
+  'HOME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'TMPDIR',
+  'TMP',
+  'TEMP',
+  'SHELL',
+];
+
+function buildSandboxEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { CI: 'true', FORCE_COLOR: '0' };
+  for (const key of SANDBOX_ENV_KEYS) {
+    const value = process.env[key];
+    if (value !== undefined) env[key] = value;
+  }
+  return env;
+}
+
 export async function runCommand(
   command: string,
   cwd: string,
@@ -19,7 +47,7 @@ export async function runCommand(
     const proc = spawn('sh', ['-c', command], {
       cwd,
       stdio: 'pipe',
-      env: { ...process.env, CI: 'true', FORCE_COLOR: '0' },
+      env: buildSandboxEnv(),
     });
 
     let stdout = '';

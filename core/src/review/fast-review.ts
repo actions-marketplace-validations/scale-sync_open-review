@@ -120,21 +120,26 @@ interface DiffChunk {
  * Each chunk contains complete file diffs (never splits a file mid-diff).
  */
 function chunkDiff(rawDiff: string, files: string[]): DiffChunk[] {
-  // Split diff by file boundaries
+  // Split diff by file boundaries, keeping only reviewable files — this must
+  // happen before the size check below, otherwise small PRs (the common case)
+  // skip filtering entirely and send lockfiles/generated/binary diffs to the LLM.
   const fileDiffs: Array<{ file: string; diff: string }> = [];
   const parts = rawDiff.split(/^(?=diff --git )/m);
 
   for (const part of parts) {
     if (!part.trim()) continue;
     const fileMatch = /^diff --git a\/(.+?) b\/(.+?)$/m.exec(part);
-    if (fileMatch) {
+    if (fileMatch && isReviewableFile(fileMatch[2])) {
       fileDiffs.push({ file: fileMatch[2], diff: part });
     }
   }
 
-  // If the whole diff fits in one chunk, return as-is
-  if (rawDiff.length <= MAX_CHUNK_CHARS) {
-    return [{ diff: rawDiff, files }];
+  const filteredDiff = fileDiffs.map((fd) => fd.diff).join('');
+  const filteredFiles = fileDiffs.map((fd) => fd.file);
+
+  // If the filtered diff fits in one chunk, return as-is
+  if (filteredDiff.length <= MAX_CHUNK_CHARS) {
+    return [{ diff: filteredDiff, files: filteredFiles.length > 0 ? filteredFiles : files }];
   }
 
   // Build chunks that stay under the limit
@@ -143,9 +148,6 @@ function chunkDiff(rawDiff: string, files: string[]): DiffChunk[] {
   let currentFiles: string[] = [];
 
   for (const fd of fileDiffs) {
-    // Skip non-reviewable files
-    if (!isReviewableFile(fd.file)) continue;
-
     // If adding this file would exceed the limit, flush current chunk
     if (currentDiff.length + fd.diff.length > MAX_CHUNK_CHARS && currentDiff.length > 0) {
       chunks.push({ diff: currentDiff, files: [...currentFiles] });
@@ -169,7 +171,7 @@ function chunkDiff(rawDiff: string, files: string[]): DiffChunk[] {
     chunks.push({ diff: currentDiff, files: currentFiles });
   }
 
-  return chunks.length > 0 ? chunks : [{ diff: rawDiff.slice(0, MAX_CHUNK_CHARS), files }];
+  return chunks.length > 0 ? chunks : [{ diff: filteredDiff.slice(0, MAX_CHUNK_CHARS), files: filteredFiles }];
 }
 
 /* ------------------------------------------------------------------ */
