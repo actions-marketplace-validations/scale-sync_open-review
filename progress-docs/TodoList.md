@@ -469,12 +469,22 @@
 - [ ] `@openreview autofix --stacked` → create new branch + PR
 - [ ] Add `autofix` CLI command: `npx openreview autofix --url <PR-URL>`
 
-## 3. `.reviewbuddy.yaml` Config
+## 3. `.reviewbuddy.yaml` Config ✅ COMPLETE (2026-08-31)
 
-- [ ] Define YAML schema (all fields from PRD section 4.11 + new Phase 2 fields)
-- [ ] Implement YAML loader in `core/src/config/`
-- [ ] Config hierarchy: `.reviewbuddy.yaml` > `.env` > defaults
-- [ ] Add: review profile (chill/assertive), path_instructions, labeling_instructions
+- [x] Define YAML schema (zod, `core/src/config/reviewbuddy.ts`)
+- [x] Implement YAML loader — local (`loadReviewBuddyConfigFromDisk`) and, since the CLI/Action/comment
+      handlers never clone the repo, a GitHub-API-based loader (`loadRepoConfigFromGitHub`,
+      `core/src/config/remote-config.ts`) that also fetches REVIEW.md/AGENTS.md/etc. — fixing a
+      pre-existing gap where instruction files were never actually wired into any live review path
+      (`PRContext.instructions` was always `''`)
+- [x] Config hierarchy: `.reviewbuddy.yaml` > `.env` > defaults (scoped to the fields the YAML
+      introduces — profile/path_instructions/labeling_instructions/finishing_touches have no `.env`
+      equivalent yet, so hierarchy is currently yaml-or-default; extend if/when those fields grow
+      `.env` counterparts)
+- [x] Add: review profile (chill/assertive), path_instructions, labeling_instructions, finishing_touches
+      (appended to the summary comment via `ReviewSummary.finishingTouches`)
+- [x] Wired into CLI (`review.ts`), Action (`pr-handler.ts`), and comment handler (`rlm`/`review`/chat
+      routes) — 26 new/updated tests, `.reviewbuddy.yaml.example` added, README documented
 
 ## 4. PR Walkthrough + Release Notes
 

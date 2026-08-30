@@ -3,6 +3,7 @@ import type { Context } from '@actions/github/lib/context.js';
 import {
   CommentPoster,
   GitHubClient,
+  loadRepoConfigFromGitHub,
   runFastReview,
 } from '@openreview/core';
 import type { PRContext } from '@openreview/core';
@@ -63,6 +64,11 @@ export async function handlePullRequest(context: Context): Promise<void> {
       core.warning(`PR has ${files.length} files (max: ${maxFiles}). Reviewing first ${maxFiles}.`);
     }
 
+    const { instructions, reviewBuddyConfig } = await loadRepoConfigFromGitHub(
+      client,
+      prMeta.head.sha,
+    );
+
     const prContext: PRContext = {
       owner,
       repo,
@@ -76,11 +82,14 @@ export async function handlePullRequest(context: Context): Promise<void> {
       },
       diff,
       files: files.slice(0, maxFiles).map((f) => f.filename),
-      instructions: '',
+      instructions,
       learnings: [],
     };
 
     const { findings, summary } = await runFastReview(prContext);
+    if (reviewBuddyConfig.finishing_touches) {
+      summary.finishingTouches = reviewBuddyConfig.finishing_touches;
+    }
 
     const finalSummary = await poster.postReviewResults(prNumber, prContext, findings, summary);
 

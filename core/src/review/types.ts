@@ -56,6 +56,8 @@ export interface ReviewSummary {
   newFindings?: ReviewFinding[];
   /** Short narrative shown under the review header. */
   narrative?: string;
+  /** Custom closing note from .reviewbuddy.yaml's finishing_touches field. */
+  finishingTouches?: string;
   /** True when no severe/non-severe/investigate findings remain open. */
   approved?: boolean;
   /** Head commit SHA for this review pass. */

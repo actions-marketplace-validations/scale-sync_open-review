@@ -154,6 +154,21 @@ Key settings:
 
 See [`.env.example`](.env.example) for the full list with all linter toggles and review behavior settings.
 
+### `.reviewbuddy.yaml` (per-repo, version-controlled)
+
+Drop a `.reviewbuddy.yaml` at the repo root to customize review behavior without touching `.env`. It's read straight from the PR's head commit via the GitHub API — no local checkout needed, so it works from the CLI, the Action, and `@openreview` comment commands alike.
+
+```yaml
+profile: chill # chill | assertive (default) — chill skips informational/stylistic nitpicks
+path_instructions:
+  - path: 'apps/web/**'
+    instructions: Favor accessibility findings over micro-optimizations.
+labeling_instructions: Treat lint-fixable style issues as informational, not investigate.
+finishing_touches: '— reviewed by OpenReview'
+```
+
+See [`.reviewbuddy.yaml.example`](.reviewbuddy.yaml.example). All fields are optional; an absent or empty file behaves exactly like today's defaults.
+
 ## Review Modes
 
 ### Fast Mode

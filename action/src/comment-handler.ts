@@ -7,6 +7,7 @@ import {
   SnapshotBuilder,
   containsTrigger,
   handleChatMention,
+  loadRepoConfigFromGitHub,
   parseDiff,
   runFastReview,
   runRLM,
@@ -86,6 +87,8 @@ export async function handleComment(context: Context): Promise<void> {
         diffs: parsedDiffs,
       });
 
+      const { instructions } = await loadRepoConfigFromGitHub(client, prMeta.head.sha);
+
       const prContext: PRContext = {
         owner,
         repo,
@@ -99,7 +102,7 @@ export async function handleComment(context: Context): Promise<void> {
         },
         diff,
         files: files.map((f) => f.filename),
-        instructions: '',
+        instructions,
         learnings: [],
       };
 
@@ -132,6 +135,11 @@ export async function handleComment(context: Context): Promise<void> {
       const files = await client.getPRFiles(prNumber);
       const diff = await client.getPRDiff(prNumber);
 
+      const { instructions, reviewBuddyConfig } = await loadRepoConfigFromGitHub(
+        client,
+        prMeta.head.sha,
+      );
+
       const prContext: PRContext = {
         owner,
         repo,
@@ -145,11 +153,14 @@ export async function handleComment(context: Context): Promise<void> {
         },
         diff,
         files: files.map((f) => f.filename),
-        instructions: '',
+        instructions,
         learnings: [],
       };
 
       const { findings, summary } = await runFastReview(prContext);
+      if (reviewBuddyConfig.finishing_touches) {
+        summary.finishingTouches = reviewBuddyConfig.finishing_touches;
+      }
 
       await poster.postReviewResults(prNumber, prContext, findings, summary);
     } catch (err) {
@@ -207,6 +218,8 @@ export async function handleComment(context: Context): Promise<void> {
       diffs: parsedDiffs,
     });
 
+    const { instructions } = await loadRepoConfigFromGitHub(client, prMeta.head.sha);
+
     const prContext: PRContext = {
       owner,
       repo,
@@ -220,7 +233,7 @@ export async function handleComment(context: Context): Promise<void> {
       },
       diff,
       files: files.map((f) => f.filename),
-      instructions: '',
+      instructions,
       learnings: [],
     };
 

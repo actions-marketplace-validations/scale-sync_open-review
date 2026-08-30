@@ -114,7 +114,7 @@ Transform OpenReview from a CLI tool into a full product experience — with a W
 
 - [ ] Web UI (3-panel: file browser, diff viewer, chat) running locally via `npx openreview serve`
 - [ ] `@openreview autofix` applies suggestions to the PR branch via a new commit
-- [ ] `.reviewbuddy.yaml` per-repo config file supported alongside `.env`
+- [x] `.reviewbuddy.yaml` per-repo config file supported alongside `.env` — profile, path_instructions, labeling_instructions, finishing_touches (2026-08-31)
 - [ ] Jira and Linear issue context pulled into reviews automatically
 - [ ] Slack / Discord / Teams notifications delivered on review completion
 - [ ] 30+ linters integrated (matching major language coverage)
@@ -297,7 +297,7 @@ These features were identified during product Q&A but deliberately deferred beyo
 | ---------------------------------------------- | --------------------------------------------- |
 | Custom glob patterns for rule source files     | Requires `.reviewbuddy.yaml` (Phase 2 prereq) |
 | AI tone and language configuration (ISO codes) | Low priority — add to Phase 2 YAML spec       |
-| Review profile options (chill / assertive)     | Add to Phase 2 YAML spec                      |
+| ~~Review profile options (chill / assertive)~~ | Done (2026-08-31) — `.reviewbuddy.yaml` `profile` field |
 | CSV export/import of learnings                 | Add to Phase 3 dashboard                      |
 | Scope control (local vs global learnings)      | Add to Phase 3 multi-platform                 |
 | Opt-in cloud retention for review history      | Phase 3 cloud tier                            |

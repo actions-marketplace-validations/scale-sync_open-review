@@ -72,6 +72,10 @@ export function formatSummaryComment(summary: ReviewSummary, state?: ReviewState
     `<sub>Files reviewed: ${summary.filesReviewed} · Duration: ${summary.duration}</sub>`,
   );
 
+  if (summary.finishingTouches) {
+    lines.push('', summary.finishingTouches);
+  }
+
   return lines.join('\n');
 }
 

@@ -3,6 +3,7 @@ import {
   GitHubClient,
   SnapshotBuilder,
   loadConfig,
+  loadRepoConfigFromGitHub,
   parseDiff,
   runFastReview,
   runRLM,
@@ -53,6 +54,11 @@ export function registerReviewCommand(program: Command): void {
             ].join('\n')
           : '';
 
+        const { instructions: repoInstructions, reviewBuddyConfig } = await loadRepoConfigFromGitHub(
+          client,
+          prMeta.head.sha,
+        );
+
         const prContext: PRContext = {
           owner: client.owner,
           repo: client.repo,
@@ -66,7 +72,7 @@ export function registerReviewCommand(program: Command): void {
           },
           diff,
           files: files.map((f) => f.filename),
-          instructions: expertInstructions,
+          instructions: [repoInstructions, expertInstructions].filter(Boolean).join('\n\n'),
           learnings: [],
         };
 
@@ -112,6 +118,10 @@ export function registerReviewCommand(program: Command): void {
           const result = await runFastReview(prContext);
           findings = result.findings;
           summary = result.summary;
+        }
+
+        if (reviewBuddyConfig.finishing_touches) {
+          summary.finishingTouches = reviewBuddyConfig.finishing_touches;
         }
 
         // Format and print output

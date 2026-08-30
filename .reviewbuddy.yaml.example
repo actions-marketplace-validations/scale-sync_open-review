@@ -1,0 +1,30 @@
+# OpenReview per-repo config — copy to `.reviewbuddy.yaml` at your repo root
+# and commit it. Every field is optional; omit what you don't need.
+#
+# Config hierarchy: .reviewbuddy.yaml > .env > built-in defaults.
+# Read straight from the PR's head commit via the GitHub API — no local
+# checkout required, so it applies to the CLI, the Action, and
+# @openreview comment commands alike.
+
+# chill   — only report severe/non-severe bugs; skip informational and
+#           purely stylistic "investigate" flags unless they carry real risk.
+# assertive (default) — today's thorough behavior, unchanged.
+profile: assertive
+
+# Extra guidance scoped to a path prefix. Listed for the model alongside the
+# diff — not a hard per-file filter.
+path_instructions: []
+# path_instructions:
+#   - path: 'apps/web/**'
+#     instructions: Favor accessibility findings over micro-optimizations.
+#   - path: 'packages/api/**'
+#     instructions: Flag any handler missing an auth check.
+
+# Freeform guidance on how to categorize/label findings.
+labeling_instructions: ''
+# labeling_instructions: >
+#   Treat lint-fixable style issues as informational, not investigate.
+
+# Appended as a closing line on every review summary comment.
+finishing_touches: ''
+# finishing_touches: '— reviewed by OpenReview'

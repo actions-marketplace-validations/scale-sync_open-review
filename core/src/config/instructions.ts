@@ -20,6 +20,9 @@ const PRIORITY: Record<string, number> = {
   '.windsurfrules': 4,
 };
 
+/** The set of filenames recognized as instruction files, regardless of directory. */
+export const INSTRUCTION_FILE_NAMES: ReadonlySet<string> = new Set(Object.keys(PRIORITY));
+
 /**
  * Approximate token count using character-based heuristic.
  * ~4 characters per token for English text is a common approximation.
@@ -53,13 +56,24 @@ function getFileName(filePath: string): string {
   return parts[parts.length - 1];
 }
 
-function getDepth(relativePath: string): number {
+/** Directory depth of a repo-relative path (0 = root). Exported for remote loaders. */
+export function getDepth(relativePath: string): number {
   if (relativePath === '' || !relativePath.includes('/')) return 0;
   return relativePath.split('/').length - 1;
 }
 
 function getPriority(fileName: string): number {
   return PRIORITY[fileName] ?? 999;
+}
+
+/** Sort instruction files: root files first (by depth), then by priority within same depth. */
+export function sortInstructionFiles<T extends { relativePath: string; depth: number }>(
+  files: T[],
+): T[] {
+  return [...files].sort((a, b) => {
+    if (a.depth !== b.depth) return a.depth - b.depth;
+    return getPriority(getFileName(a.relativePath)) - getPriority(getFileName(b.relativePath));
+  });
 }
 
 export async function findInstructionFiles(repoPath: string): Promise<InstructionFile[]> {
@@ -94,18 +108,17 @@ export async function findInstructionFiles(repoPath: string): Promise<Instructio
     });
   }
 
-  // Sort: root files first (by depth), then by priority within same depth
-  files.sort((a, b) => {
-    if (a.depth !== b.depth) return a.depth - b.depth;
-    return getPriority(a.fileName) - getPriority(b.fileName);
-  });
-
-  return files;
+  return sortInstructionFiles(files);
 }
 
-export async function loadInstructions(repoPath: string): Promise<InstructionResult> {
-  const files = await findInstructionFiles(repoPath);
-
+/**
+ * Merge a set of instruction files (already sorted by priority) into a global
+ * block plus per-directory scoped blocks, respecting the MAX_CHARS budget.
+ * Pure function — shared by the local (fs) and remote (GitHub API) loaders.
+ */
+export function buildInstructionResult(
+  files: Array<Pick<InstructionFile, 'relativePath' | 'depth' | 'content'>>,
+): InstructionResult {
   const globalParts: string[] = [];
   const scopedMap = new Map<string, string[]>();
 
@@ -139,4 +152,9 @@ export async function loadInstructions(repoPath: string): Promise<InstructionRes
     globalInstructions: globalParts.join('\n\n'),
     scopedInstructions,
   };
+}
+
+export async function loadInstructions(repoPath: string): Promise<InstructionResult> {
+  const files = await findInstructionFiles(repoPath);
+  return buildInstructionResult(files);
 }

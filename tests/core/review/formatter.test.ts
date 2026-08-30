@@ -52,6 +52,16 @@ describe('formatSummaryComment', () => {
     expect(result).toContain('<!-- openreview-summary -->');
   });
 
+  it('appends finishingTouches when present', () => {
+    const result = formatSummaryComment(makeSummary({ finishingTouches: '— reviewed by OpenReview' }));
+    expect(result).toContain('— reviewed by OpenReview');
+  });
+
+  it('omits any finishing-touches footer when absent', () => {
+    const result = formatSummaryComment(makeSummary());
+    expect(result).not.toContain('reviewed by OpenReview');
+  });
+
   it('uses Code Review header with approved badge when approved', () => {
     const result = formatSummaryComment(
       makeSummary({

@@ -5,6 +5,17 @@ export const VERSION = '1.0.0';
 export { config, loadConfig, validateConfig } from './config/env.js';
 export type { OpenReviewConfig } from './config/env.js';
 export { findInstructionFiles, loadInstructions } from './config/instructions.js';
+export {
+  DEFAULT_REVIEWBUDDY_CONFIG,
+  REVIEWBUDDY_CONFIG_FILE,
+  ReviewBuddyConfigSchema,
+  buildReviewBuddyInstructions,
+  loadReviewBuddyConfigFromDisk,
+  parseReviewBuddyConfig,
+} from './config/reviewbuddy.js';
+export type { PathInstruction, ReviewBuddyConfig } from './config/reviewbuddy.js';
+export { loadRepoConfigFromGitHub } from './config/remote-config.js';
+export type { RemoteRepoConfig } from './config/remote-config.js';
 
 // GitHub
 export { GitHubClient, parsePRUrl } from './github/client.js';
