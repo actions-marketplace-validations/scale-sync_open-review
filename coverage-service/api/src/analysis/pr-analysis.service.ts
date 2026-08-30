@@ -28,6 +28,31 @@ export class PrAnalysisService {
       throw new NotFoundException('Repository not found');
     }
 
+    // Two webhook retries (or two manual /analyze calls) for the same PR head
+    // SHA would otherwise race to create two PullRequestRun rows and two
+    // concurrent clone→coverage→LLM jobs. Reuse any run still in flight.
+    const existing = await this.prisma.pullRequestRun.findFirst({
+      where: {
+        repositoryId: repository.id,
+        prNumber: input.prNumber,
+        headSha: input.headSha,
+        status: { notIn: ['COMPLETED', 'FAILED'] },
+      },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    if (existing) {
+      this.logger.log(
+        `Reusing in-progress PR analysis run ${existing.id} for ${repository.githubRepo}#${input.prNumber}@${input.headSha}`,
+      );
+      return {
+        prRunId: existing.id,
+        status: 'duplicate' as const,
+        repository: repository.githubRepo,
+        prNumber: input.prNumber,
+      };
+    }
+
     const prRun = await this.prisma.pullRequestRun.create({
       data: {
         repositoryId: repository.id,
