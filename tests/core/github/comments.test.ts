@@ -139,63 +139,6 @@ describe('postReviewResults', () => {
   });
 });
 
-describe('postCoverageComment', () => {
-  it('creates new comment when no existing coverage marker', async () => {
-    const { client, api } = makeMockClient();
-    const poster = new CommentPoster(client);
-    api.get.mockResolvedValue({ data: [] });
-    api.post.mockResolvedValue({ data: {} });
-
-    await poster.postCoverageComment(7, 'Coverage done');
-
-    expect(api.post).toHaveBeenCalledOnce();
-    expect(api.post.mock.calls[0][1].body).toContain('<!-- openreview:coverage -->');
-  });
-
-  it('updates existing coverage comment when it is already the latest timeline comment', async () => {
-    const { client, api } = makeMockClient();
-    const poster = new CommentPoster(client);
-    api.get
-      .mockResolvedValueOnce({
-        data: [{ id: 300, body: '<!-- openreview:coverage -->\nold' }],
-      })
-      .mockResolvedValueOnce({
-        data: [{ id: 300, body: '<!-- openreview:coverage -->\nold' }],
-      });
-    api.patch.mockResolvedValue({ data: {} });
-
-    await poster.postCoverageComment(7, '<!-- openreview:coverage -->\nnew');
-
-    expect(api.patch).toHaveBeenCalledWith(
-      '/repos/test-owner/test-repo/issues/comments/300',
-      expect.objectContaining({ body: expect.stringContaining('new') }),
-    );
-    expect(api.post).not.toHaveBeenCalled();
-  });
-
-  it('deletes the stale coverage comment and posts a new one when a newer timeline comment exists', async () => {
-    const { client, api } = makeMockClient();
-    const poster = new CommentPoster(client);
-    api.get
-      .mockResolvedValueOnce({
-        data: [{ id: 400, body: 'some other bot comment' }],
-      })
-      .mockResolvedValueOnce({
-        data: [{ id: 300, body: '<!-- openreview:coverage -->\nold' }],
-      });
-    api.post.mockResolvedValue({ data: {} });
-    api.delete.mockResolvedValue({ data: {} });
-
-    await poster.postCoverageComment(7, '<!-- openreview:coverage -->\nnew');
-
-    expect(api.delete).toHaveBeenCalledWith(
-      '/repos/test-owner/test-repo/issues/comments/300',
-    );
-    expect(api.post).toHaveBeenCalledOnce();
-    expect(api.patch).not.toHaveBeenCalled();
-  });
-});
-
 describe('postSummaryComment', () => {
   it('creates new comment when no existing summary', async () => {
     const { client, api } = makeMockClient();

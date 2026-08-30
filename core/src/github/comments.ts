@@ -17,7 +17,6 @@ export { parseReviewState, enrichReviewSummary, buildReviewState };
 export type { ReviewState };
 
 export const REVIEW_SUMMARY_MARKER = '<!-- openreview-summary -->';
-export const COVERAGE_SUMMARY_MARKER = '<!-- openreview:coverage -->';
 
 /* ------------------------------------------------------------------ */
 /*  Comment Poster                                                     */
@@ -83,17 +82,6 @@ export class CommentPoster {
   ): Promise<void> {
     const body = formatSummaryComment(summary, state);
     await this.postOrUpdateMarkedComment(prNumber, REVIEW_SUMMARY_MARKER, body);
-  }
-
-  /**
-   * Post or update the coverage summary on the original PR.
-   * Replaces the previous coverage comment instead of posting a new one each push.
-   */
-  async postCoverageComment(prNumber: number, body: string): Promise<void> {
-    const content = body.includes(COVERAGE_SUMMARY_MARKER)
-      ? body
-      : `${COVERAGE_SUMMARY_MARKER}\n${body}`;
-    await this.postOrUpdateMarkedComment(prNumber, COVERAGE_SUMMARY_MARKER, content);
   }
 
   /** Load persisted review state from the existing summary comment, if any. */
