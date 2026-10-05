@@ -613,8 +613,10 @@ function buildPrompt(
   }
 
   const humanContent = [
-    `## Pull Request: ${pr.metadata.title}`,
-    `**Repository:** ${pr.owner}/${pr.repo} | **PR #${pr.prNumber}** | **Author:** ${pr.metadata.author}`,
+    `## ${pr.prNumber > 0 ? 'Pull Request' : 'Local Review'}: ${pr.metadata.title}`,
+    pr.prNumber > 0
+      ? `**Repository:** ${pr.owner}/${pr.repo} | **PR #${pr.prNumber}** | **Author:** ${pr.metadata.author}`
+      : `**Repository:** ${pr.repo} | **Local changes**`,
     '',
   ];
 
@@ -664,7 +666,7 @@ function buildFocusedRetryPrompt(
       content: [
         persona,
         '',
-        `This PR modifies ${typeLabel}. You MUST find and report issues.`,
+        `This ${pr.prNumber > 0 ? 'PR' : 'local change'} modifies ${typeLabel}. You MUST find and report issues.`,
         '',
         'For each changed file, check:',
         ...getFileTypeInstructions(fileType),
@@ -680,7 +682,7 @@ function buildFocusedRetryPrompt(
     },
     {
       role: 'human',
-      content: `## PR: ${pr.metadata.title}\n\n### Diff\n\`\`\`diff\n${pr.diff}\n\`\`\``,
+      content: `## ${pr.prNumber > 0 ? 'PR' : 'Local Review'}: ${pr.metadata.title}\n\n### Diff\n\`\`\`diff\n${pr.diff}\n\`\`\``,
     },
   ];
 }

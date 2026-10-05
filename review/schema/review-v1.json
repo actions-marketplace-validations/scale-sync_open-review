@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/scale-sync/open-review/blob/main/review/schema/review-v1.json",
+  "title": "open-review local review contract v1",
+  "$defs": {
+    "request": {
+      "type": "object",
+      "required": ["contractVersion", "mode", "repoRoot", "diff", "files"],
+      "properties": {
+        "contractVersion": { "const": 1 },
+        "mode": { "enum": ["workspace", "branch", "commit"] },
+        "repoRoot": { "type": "string", "minLength": 1 },
+        "baseRef": { "type": "string" },
+        "headRef": { "type": "string" },
+        "baseSha": { "type": "string" },
+        "mergeBaseSha": { "type": "string" },
+        "headSha": { "type": "string" },
+        "commitSha": { "type": "string" },
+        "parents": { "type": "array", "items": { "type": "string" } },
+        "diff": { "type": "string" },
+        "files": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      },
+      "additionalProperties": false
+    },
+    "finding": {
+      "type": "object",
+      "required": ["file", "startLine", "title", "severity"],
+      "properties": {
+        "file": { "type": "string" },
+        "startLine": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string" },
+        "severity": { "enum": ["severe", "non-severe", "investigate", "informational"] }
+      },
+      "additionalProperties": true
+    }
+  },
+  "type": "object",
+  "required": ["contractVersion", "status", "request", "findings"],
+  "properties": {
+    "contractVersion": { "const": 1 },
+    "status": { "enum": ["empty", "complete"] },
+    "request": { "$ref": "#/$defs/request" },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "summary": { "type": "object" },
+    "trace": { "type": "object" }
+  },
+  "additionalProperties": false
+}

@@ -22,9 +22,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm lint
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
+      - run: go test ./...

@@ -1,5 +1,7 @@
 # OpenReview — Milestone Document
 
+> Historical milestone plan. Current three-release sequence: [Go-dominant release plan](Go_Dominant_Release_Plan.md).
+
 > Version 1.2 | 2026-03-24
 > 3 Phase-level Milestones + Post-MVP Roadmap
 > Audience: Solo Founder / Product Manager / Technical Lead

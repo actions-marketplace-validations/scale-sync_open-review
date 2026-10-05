@@ -1,5 +1,7 @@
 # OpenReview — Feature Specification
 
+> Historical specification. Current identity, architecture, and release decisions: [Product Direction (2026-10-15)](Product_Direction_2026-10-15.md).
+
 > Open-source agentic code review tool combining the best of AsyncReview, Devin Review, and CodeRabbit.
 > Defined via product Q&A session on 2026-03-16. Tech stack updated 2026-03-17.
 

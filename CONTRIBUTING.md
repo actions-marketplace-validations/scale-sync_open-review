@@ -1,4 +1,4 @@
-# Contributing to OpenReview
+# Contributing to open-review
 
 Thank you for your interest in contributing to OpenReview! This document covers the process for contributing to this project.
 
@@ -7,8 +7,8 @@ Thank you for your interest in contributing to OpenReview! This document covers 
 1. **Fork** the repository on GitHub
 2. **Clone** your fork locally:
    ```bash
-   git clone git@github.com:<your-username>/OpenReview.git
-   cd OpenReview
+   git clone git@github.com:<your-username>/open-review.git
+   cd open-review
    ```
 3. **Install dependencies:**
    ```bash
@@ -65,7 +65,7 @@ All code must pass `pnpm lint`, `pnpm typecheck`, and `pnpm test` before submitt
 
 ```
 core/    # @openreview/core — review engine, LLM router, GitHub client
-cli/     # openreview — CLI (npx openreview)
+cli/     # open-review — TypeScript PR CLI and local review bridge
 action/  # @openreview/action — GitHub Action
 web/     # Phase 2 placeholder (React 19 + Vite 8)
 ```

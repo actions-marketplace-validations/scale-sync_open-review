@@ -1,11 +1,27 @@
-# OpenReview
+# open-review
 
-[![CI](https://github.com/scale-sync/OpenReview/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/OpenReview/actions/workflows/ci.yml)
+[![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Open-source, agentic code review tool. AI-powered bug detection, sandboxed code execution, codebase-aware chat, and full GitHub workflow integration.
+Open-source, agentic code review tool. v0.5.0 adds local Git reviews through a Go CLI. The existing TypeScript reviewer still powers model analysis while the Go engine is built out.
 
-## Why OpenReview?
+## v0.5.0 from source
+
+Requires Go 1.23+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
+
+```bash
+git clone https://github.com/scale-sync/open-review.git
+cd open-review
+pnpm install --frozen-lockfile
+pnpm build
+go run ./cmd/open-review review --workspace
+go run ./cmd/open-review review --base main --head feature-branch
+go run ./cmd/open-review review --commit HEAD --output json
+```
+
+Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v0.5.0 release notes](_plan_docs/releases/v0.5.0.md).
+
+## Existing PR review features
 
 - **Self-hosted** — runs entirely on your infrastructure. Code never leaves your machine except to your chosen LLM API.
 - **Dual review modes** — Fast mode (single-shot, < 60s) and Deep/RLM mode (agentic loop with sandboxed code execution).
@@ -18,40 +34,17 @@ Open-source, agentic code review tool. AI-powered bug detection, sandboxed code 
 
 ## Quick Start
 
-### GitHub Action (auto-review on every PR)
+### GitHub Action
 
-Add to `.github/workflows/openreview.yml`:
-
-```yaml
-name: OpenReview
-on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-  pull_request_review_comment:
-    types: [created]
-
-permissions:
-  contents: read
-  pull-requests: write
-
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: scale-sync/OpenReview@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-```
+The Action source is retained during migration. It is not packaged as a usable GitHub Action in v0.5.0.
 
 ### CLI (review any PR from your terminal)
 
-For users who want to evaluate OpenReview without cloning:
+From this source checkout after `pnpm build`:
 
 ```bash
 # Review a PR (Fast mode)
-npx openreview review --url https://github.com/owner/repo/pull/123
+node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123
 ```
 
 For developers working in a local clone:
@@ -63,7 +56,7 @@ pnpm build
 # 2. Run a review
 node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123
 # OR
-pnpm review --url https://github.com/owner/repo/pull/123
+node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123
 ```
 
 ### GitHub Comment Commands
@@ -81,20 +74,21 @@ pnpm review --url https://github.com/owner/repo/pull/123
 ### `review` — Review a Pull Request
 
 ```bash
-npx openreview review --url <PR-URL> [options]
+node cli/dist/main.mjs review --url <PR-URL> [options]
 ```
 
-| Option           | Default  | Description                                       |
-| ---------------- | -------- | ------------------------------------------------- |
-| `--url <url>`    | required | GitHub PR URL                                     |
-| `--mode <mode>`  | `fast`   | Review mode: `fast` or `rlm`                      |
-| `--output <fmt>` | `text`   | Output format: `text`, `markdown`, or `json`       |
-| `--model <id>`   | —        | Override the LLM model at runtime                  |
-| `--expert`       | off      | Comprehensive SOLID, security, and quality review  |
+| Option           | Default  | Description                                           |
+| ---------------- | -------- | ----------------------------------------------------- |
+| `--url <url>`    | required | GitHub PR URL                                         |
+| `--mode <mode>`  | `fast`   | Review mode: `fast` or `rlm`                          |
+| `--output <fmt>` | `text`   | Output format: `text`, `markdown`, or `json`          |
+| `--model <id>`   | —        | Override the LLM model at runtime                     |
+| `--expert`       | off      | Comprehensive SOLID, security, and quality review     |
 | `--submit`       | off      | Post findings as GitHub PR comment (inline + summary) |
-| `--quiet`        | off      | Suppress progress output (only print findings)     |
+| `--quiet`        | off      | Suppress progress output (only print findings)        |
 
 **Expert mode** (`--expert`) adds deep analysis covering:
+
 - SOLID principles (single responsibility, open/closed, Liskov, interface segregation, dependency inversion)
 - Security (OWASP Top 10, injection, auth/authz, data exposure)
 - Code quality (complexity, readability, maintainability, test coverage gaps)
@@ -103,7 +97,7 @@ npx openreview review --url <PR-URL> [options]
 ### `ask` — Interactive Q&A
 
 ```bash
-npx openreview ask [--url <PR-URL>] [--repo <path>]
+node cli/dist/main.mjs ask [--url <PR-URL>] [--repo <path>]
 ```
 
 Opens an interactive REPL for codebase-aware Q&A. Supports commands: `reset`, `history`, `files`, `exit`.
@@ -111,9 +105,9 @@ Opens an interactive REPL for codebase-aware Q&A. Supports commands: `reset`, `h
 ### `traces` — View Review Logs
 
 ```bash
-npx openreview traces --list             # List recent traces (last 20)
-npx openreview traces --pr <PR-URL>      # Traces for a specific PR
-npx openreview traces --open <file>      # Pretty-print a trace file
+node cli/dist/main.mjs traces --list             # List recent traces (last 20)
+node cli/dist/main.mjs traces --pr <PR-URL>      # Traces for a specific PR
+node cli/dist/main.mjs traces --open <file>      # Pretty-print a trace file
 ```
 
 Every review (Fast or RLM) generates a JSON trace at `~/.openreview/traces/` with full audit trail: prompts, responses, findings, duration, and iteration details.
@@ -121,7 +115,7 @@ Every review (Fast or RLM) generates a JSON trace at `~/.openreview/traces/` wit
 ### `serve` — API Server
 
 ```bash
-npx openreview serve [--port <n>] [--host <host>]
+node cli/dist/main.mjs serve [--port <n>] [--host <host>]
 ```
 
 Starts an Express.js server for the web UI (Phase 2) and API integrations.
@@ -136,20 +130,20 @@ cp .env.example .env
 
 Key settings:
 
-| Variable              | Default       | Description                                  |
-| --------------------- | ------------- | -------------------------------------------- |
-| `OPENAI_API_KEY`      | —             | OpenAI API key                               |
-| `ANTHROPIC_API_KEY`   | —             | Anthropic API key                            |
-| `GEMINI_API_KEY`      | —             | Google Gemini API key                        |
-| `MAIN_MODEL`          | `gpt-4o`      | Primary model for review and chat            |
-| `SUB_MODEL`           | `gpt-4o-mini` | Secondary model for suggestions              |
-| `MAX_FILES`           | `100`         | Max files per review                         |
-| `MAX_ITERATIONS`      | `12`          | Max RLM loop iterations                      |
-| `MAX_LLM_CALLS`       | `35`          | Max LLM calls per RLM session               |
-| `DEFAULT_REVIEW_MODE` | `fast`        | Default mode: `fast` or `rlm`               |
-| `INCLUDE_GLOBS`       | —             | File patterns to include (e.g. `src/**/*.ts`) |
-| `EXCLUDE_GLOBS`       | —             | File patterns to exclude (e.g. `dist/**`)    |
-| `OPENAI_BASE_URL`     | —             | Custom OpenAI-compatible endpoint URL        |
+| Variable              | Default       | Description                                              |
+| --------------------- | ------------- | -------------------------------------------------------- |
+| `OPENAI_API_KEY`      | —             | OpenAI API key                                           |
+| `ANTHROPIC_API_KEY`   | —             | Anthropic API key                                        |
+| `GEMINI_API_KEY`      | —             | Google Gemini API key                                    |
+| `MAIN_MODEL`          | `gpt-4o`      | Primary model for review and chat                        |
+| `SUB_MODEL`           | `gpt-4o-mini` | Secondary model for suggestions                          |
+| `MAX_FILES`           | `100`         | Max files per review                                     |
+| `MAX_ITERATIONS`      | `12`          | Max RLM loop iterations                                  |
+| `MAX_LLM_CALLS`       | `35`          | Max LLM calls per RLM session                            |
+| `DEFAULT_REVIEW_MODE` | `fast`        | Default mode: `fast` or `rlm`                            |
+| `INCLUDE_GLOBS`       | —             | File patterns to include (e.g. `src/**/*.ts`)            |
+| `EXCLUDE_GLOBS`       | —             | File patterns to exclude (e.g. `dist/**`)                |
+| `OPENAI_BASE_URL`     | —             | Custom OpenAI-compatible endpoint URL                    |
 | `GITHUB_PAT`          | —             | GitHub Personal Access Token (Optional for public repos) |
 
 See [`.env.example`](.env.example) for the full list with all linter toggles and review behavior settings.
@@ -176,18 +170,19 @@ See [`.reviewbuddy.yaml.example`](.reviewbuddy.yaml.example). All fields are opt
 Single-shot structured LLM call over the diff. Large diffs are automatically chunked by file (~40K chars per chunk) and reviewed in parallel. Non-reviewable files (lock files, generated code, images) are skipped automatically. Runs bundled linters in parallel.
 
 **Smart prompting:**
+
 - Small PRs (≤ 5 files, ≤ 3000 chars) use a compact, focused prompt for high accuracy
 - Large PRs use a comprehensive prompt with full category checklist
 - File-type detection adapts the reviewer persona (code reviewer / K8s auditor / docs reviewer / config specialist)
 
 Findings are categorized:
 
-| Severity                    | Description                              |
-| --------------------------- | ---------------------------------------- |
+| Severity                    | Description                                                    |
+| --------------------------- | -------------------------------------------------------------- |
 | 🔴 **Bug — Severe**         | Requires immediate fix. Security risk or broken functionality. |
-| 🟠 **Bug — Non-severe**     | Should be reviewed. Incorrect but not critical.               |
-| 🔍 **Flag — Investigate**   | Warrants closer examination. May or may not be an issue.      |
-| ℹ️ **Flag — Informational** | Explanatory annotation. No action required.                   |
+| 🟠 **Bug — Non-severe**     | Should be reviewed. Incorrect but not critical.                |
+| 🔍 **Flag — Investigate**   | Warrants closer examination. May or may not be an issue.       |
+| ℹ️ **Flag — Informational** | Explanatory annotation. No action required.                    |
 
 ### Deep / RLM Mode
 
@@ -228,8 +223,8 @@ Files at subdirectory level are scoped to code in that subtree. Total instructio
 
 ```bash
 # Prerequisites: Node.js ≥ 20, pnpm, Deno ≥ 2.7 (optional, for RLM sandbox)
-git clone https://github.com/scale-sync/OpenReview.git
-cd OpenReview
+git clone https://github.com/scale-sync/open-review.git
+cd open-review
 pnpm install
 
 # Build all packages

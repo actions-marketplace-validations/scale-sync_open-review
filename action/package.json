@@ -1,11 +1,11 @@
 {
   "name": "@openreview/action",
-  "version": "1.0.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "main": "dist/index.mjs",
   "scripts": {
-    "build": "tsdown src/index.ts --format esm --dts",
+    "build": "tsdown src/index.ts --format esm --no-dts && tsc --emitDeclarationOnly --declarationMap false",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

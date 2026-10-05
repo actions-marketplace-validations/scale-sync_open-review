@@ -1,5 +1,7 @@
 # OpenReview — Product Requirements Document (PRD)
 
+> Historical specification. Current identity, architecture, and release decisions: [Product Direction (2026-10-15)](Product_Direction_2026-10-15.md).
+
 > Version 1.2 | 2026-03-24
 > Audience: Solo Founder / Product Manager / Technical Lead
 > Status: In Development — Phase 1 Core Features Complete (2026-03-24) — All feature sections implemented, launch checklist pending

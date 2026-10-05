@@ -1,6 +1,6 @@
 # OpenReview — Project Memory Guide
 
-> **project_id:** scale-sync/OpenReview
+> **project_id:** scale-sync/open-review
 > **Last updated:** 2026-03-23
 > **Phase:** 1 (MVP) — Weeks 1–3 complete, Week 4 in backlog
 
@@ -8,9 +8,9 @@
 
 ## Overview
 
-OpenReview is an open-source, agentic code review tool — AI-powered bug detection with sandboxed code execution, codebase-aware chat, and full GitHub workflow integration. Distributed as `npx openreview` CLI + GitHub Action. MIT licensed.
+open-review is an open-source, agentic code review tool. v0.5.0 is a source release with a Go local review CLI and a TypeScript review bridge. Package registry and GitHub Action distribution are future work. MIT licensed.
 
-**Repository:** github.com/scale-sync/OpenReview
+**Repository:** github.com/scale-sync/open-review
 **Language:** TypeScript (strict mode, ESM-only)
 **Runtime:** Node.js ≥ 20
 **Package manager:** pnpm 10.x (monorepo workspaces)
@@ -244,5 +244,7 @@ tests/core/
 | 1     | 3    | ✅ Complete | Deno sandbox, hybrid snapshot, RLM loop, trace logger, chat handler, learnings store, 320 tests, comprehensive QA |
 | 1     | 4    | 🔲 Backlog  | CLI commands, GitHub Action handlers, SKILL.md, README, final testing & launch           |
 
-Planning docs: `progress-docs/` (PRD, Milestones, TodoList, Feature Spec)
+Product decisions: `_decision_docs/` (PRD, Feature Spec)
+Planning docs: `_plan_docs/` (Milestones, TodoList)
+Product references: `_research_refs/` (Impact Analysis Product Spec)
 Weekly breakdowns: `local-docs/phase1-week{1-4}-todo.md`

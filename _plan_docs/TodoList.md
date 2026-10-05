@@ -1,5 +1,7 @@
 # OpenReview — Phase-wise Deep To-Do List
 
+> Historical task list. Current three-release sequence: [Go-dominant release plan](Go_Dominant_Release_Plan.md).
+
 > Version 1.2 | 2026-03-24
 > Structure: Phase → Feature → Task
 > Audience: Solo Founder / Technical Lead

@@ -7,10 +7,10 @@ import { registerReviewCommand } from './commands/review.js';
 import { registerServeCommand } from './commands/serve.js';
 import { registerTracesCommand } from './commands/traces.js';
 
-const VERSION = '1.0.0';
+const VERSION = '0.5.0';
 
 const program = new Command()
-  .name('openreview')
+  .name('open-review')
   .description('Open-source agentic code review tool')
   .version(VERSION);
 

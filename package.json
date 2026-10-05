@@ -1,6 +1,6 @@
 {
-  "name": "openreview",
-  "version": "1.0.0",
+  "name": "open-review-workspace",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "description": "Open-source agentic code review tool — AI-powered bug detection, sandboxed execution, codebase-aware chat, full GitHub sync",
@@ -11,20 +11,21 @@
   "packageManager": "pnpm@10.28.0",
   "scripts": {
     "build": "pnpm -r build",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "oxlint --type-aware core cli action tests",
+    "lint:fix": "oxlint --type-aware --fix core cli action tests",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "review": "node cli/dist/main.mjs review"
+    "review": "go run ./cmd/open-review review"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@langchain/anthropic": "^0.3.34",
     "@langchain/core": "^0.3.80",
     "@langchain/google-genai": "^0.2.18",
@@ -33,12 +34,11 @@
     "@types/node": "^25.5.0",
     "@vitest/coverage-v8": "^4.1.0",
     "axios": "^1.13.6",
-    "eslint": "^10.0.3",
-    "eslint-plugin-import-x": "^4.16.2",
+    "oxlint": "^1.88.0",
+    "oxlint-tsgolint": "^7.0.2004",
     "prettier": "^3.8.1",
     "tsdown": "^0.21.4",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.1",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.0",
     "zod": "^4.3.6"
   }

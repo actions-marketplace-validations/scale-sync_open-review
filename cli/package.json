@@ -1,14 +1,14 @@
 {
-  "name": "openreview",
-  "version": "1.0.0",
+  "name": "open-review",
+  "version": "0.5.0",
   "type": "module",
   "bin": {
-    "openreview": "dist/main.mjs"
+    "open-review": "dist/main.mjs"
   },
   "main": "dist/main.mjs",
-  "types": "dist/main.d.mts",
+  "types": "dist/main.d.ts",
   "scripts": {
-    "build": "tsdown src/main.ts --format esm --dts",
+    "build": "tsdown src/main.ts src/local-bridge.ts --format esm --no-dts && tsc --emitDeclarationOnly --declarationMap false",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
