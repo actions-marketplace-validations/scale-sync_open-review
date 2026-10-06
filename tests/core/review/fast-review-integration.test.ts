@@ -340,4 +340,18 @@ describe('runFastReview', () => {
     expect(humanContent).not.toContain('package-lock.json');
     expect(humanContent).not.toContain('lockfileVersion');
   });
+
+  it('preserves an explicitly selected text file with an otherwise skipped extension', async () => {
+    const mockInvoke = vi.fn().mockResolvedValue({ content: '[]' });
+    mockCreateMainLLM.mockReturnValue({ invoke: mockInvoke } as never);
+    const pr = makePRContext({
+      diff: 'diff --git a/notes.png b/notes.png\n--- /dev/null\n+++ b/notes.png\n@@ -0,0 +1 @@\n+plain text\n',
+      files: ['notes.png'],
+    });
+
+    await runFastReview(pr, undefined, true);
+
+    const prompt = mockInvoke.mock.calls[0][0] as Array<{ role: string; content: string }>;
+    expect(prompt.find((message) => message.role === 'human')?.content).toContain('plain text');
+  });
 });

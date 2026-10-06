@@ -142,3 +142,55 @@ func TestRejectsOutsideRepository(t *testing.T) {
 		t.Fatal("expected non-repository error")
 	}
 }
+
+func TestCommitPreservesCopyAndBinaryMetadata(t *testing.T) {
+	root := newRepo(t)
+	original := strings.Repeat("line of reusable content\n", 30)
+	write(t, root, "source.go", original)
+	command(t, root, "add", ".")
+	command(t, root, "commit", "-qm", "initial")
+	write(t, root, "source.go", original+"one more line\n")
+	write(t, root, "copy.go", original)
+	if err := os.WriteFile(filepath.Join(root, "logo.png"), []byte{0, 1, 2, 3}, 0600); err != nil {
+		t.Fatal(err)
+	}
+	command(t, root, "add", ".")
+	command(t, root, "commit", "-qm", "copy and binary")
+	input, err := Prepare(context.Background(), Options{Repo: root, Mode: "commit", Commit: "HEAD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	seenCopy, seenBinary := false, false
+	for _, change := range input.Changes {
+		if change.Path == "copy.go" {
+			seenCopy = change.Status == "copied" && change.OldPath == "source.go"
+		}
+		if change.Path == "logo.png" {
+			seenBinary = change.Binary && len(change.Hunks) == 0
+		}
+	}
+	if !seenCopy || !seenBinary {
+		t.Fatalf("copy or binary missing: %+v", input.Changes)
+	}
+}
+
+func TestWorkspaceRecordsUnsafeAndOversizedUntrackedFiles(t *testing.T) {
+	root := newRepo(t)
+	if err := os.Symlink("/tmp/outside", filepath.Join(root, "link.go")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "large.go"), make([]byte, maxUntrackedBytes+1), 0600); err != nil {
+		t.Fatal(err)
+	}
+	input, err := Prepare(context.Background(), Options{Repo: root, Mode: "workspace"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	issues := map[string]string{}
+	for _, change := range input.Changes {
+		issues[change.Path] = change.InputIssue
+	}
+	if issues["link.go"] != "unsafe_input" || issues["large.go"] != "size_limit" || input.Diff != "" {
+		t.Fatalf("issues = %+v; diff = %q", issues, input.Diff)
+	}
+}

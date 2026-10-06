@@ -24,7 +24,7 @@ async function main(): Promise<void> {
   }
   const request = JSON.parse(input) as LocalRequest;
   if (
-    request.contractVersion !== 1 ||
+    request.contractVersion !== 2 ||
     !['workspace', 'branch', 'commit'].includes(request.mode) ||
     typeof request.repoRoot !== 'string' ||
     request.repoRoot.length === 0 ||
@@ -61,7 +61,7 @@ async function main(): Promise<void> {
     instructions: [instructionSet.globalInstructions, ...relevant].filter(Boolean).join('\n\n'),
     learnings: [],
   };
-  const result = await runFastReview(context);
+  const result = await runFastReview(context, undefined, true);
   process.stdout.write(JSON.stringify(result));
 }
 

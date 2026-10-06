@@ -25,6 +25,12 @@ Run these commands from the source checkout. `--repo` may point to another Git r
 # Staged, unstaged, and untracked changes
 go run ./cmd/open-review review --repo /path/to/repository --workspace
 
+# Preview selected and skipped files without a model call
+go run ./cmd/open-review review --repo /path/to/repository --workspace --preview
+
+# Override default file filters, while keeping unsafe inputs excluded
+go run ./cmd/open-review review --repo /path/to/repository --workspace --include '**/*.go' --exclude 'vendor/**'
+
 # Changes introduced by a branch since the merge base
 go run ./cmd/open-review review --repo /path/to/repository --base main --head feature-branch
 
@@ -42,7 +48,7 @@ The existing TypeScript CLI still reviews a GitHub pull request when provided a 
 node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123
 ```
 
-The GitHub Action source remains in `action/`, but v0.5.0 does not package it for direct use. There is no npm, PyPI, crates.io, or Go registry publication in this release.
+The GitHub Action source remains in `action/`, but v0.6.0 does not package it for direct use. There is no npm, PyPI, crates.io, or Go registry publication in this release.
 
 ## Test and troubleshoot
 
@@ -54,4 +60,4 @@ pnpm test
 go test ./...
 ```
 
-If `go run` reports that the bridge is unavailable, run `pnpm build` from the source checkout. If a nonempty review reports missing model configuration, set one supported API key. See [review behavior](review/README.md) and [the release notes](_plan_docs/releases/v0.5.0.md).
+If `go run` reports that the bridge is unavailable, run `pnpm build` from the source checkout. If a nonempty review reports missing model configuration, set one supported API key. See [review behavior](review/README.md) and [the release notes](_plan_docs/releases/v0.6.0.md).

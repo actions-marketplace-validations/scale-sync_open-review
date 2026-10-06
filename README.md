@@ -3,9 +3,9 @@
 [![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Open-source, agentic code review tool. v0.5.0 adds local Git reviews through a Go CLI. The existing TypeScript reviewer still powers model analysis while the Go engine is built out.
+Open-source, agentic code review tool. v0.6.0 adds visible file selection and coverage to local Git reviews. The existing TypeScript reviewer still powers model analysis while the Go engine is built out.
 
-## v0.5.0 from source
+## v0.6.0 from source
 
 Requires Go 1.23+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
 
@@ -15,11 +15,13 @@ cd open-review
 pnpm install --frozen-lockfile
 pnpm build
 go run ./cmd/open-review review --workspace
+go run ./cmd/open-review review --workspace --preview
+go run ./cmd/open-review review --workspace --include '**/*.go' --exclude 'vendor/**'
 go run ./cmd/open-review review --base main --head feature-branch
 go run ./cmd/open-review review --commit HEAD --output json
 ```
 
-Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v0.5.0 release notes](_plan_docs/releases/v0.5.0.md).
+Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v0.6.0 release notes](_plan_docs/releases/v0.6.0.md).
 
 ## Existing PR review features
 
@@ -36,7 +38,7 @@ Use `--repo PATH` to inspect another checkout. See [local review details](review
 
 ### GitHub Action
 
-The Action source is retained during migration. It is not packaged as a usable GitHub Action in v0.5.0.
+The Action source is retained during migration. It is not packaged as a usable GitHub Action in v0.6.0.
 
 ### CLI (review any PR from your terminal)
 

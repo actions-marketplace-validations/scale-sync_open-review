@@ -23,12 +23,14 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache: false
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
       - run: go test ./...
+      - run: go vet ./...
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

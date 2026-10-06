@@ -1,6 +1,6 @@
 # Getting started with open-review
 
-v0.5.0 is a source release. Build it locally to review workspace changes, compare branches, or review one commit.
+v0.6.0 is a source release. Build it locally to review workspace changes, compare branches, or review one commit, with visible file coverage.
 
 ```bash
 git clone https://github.com/scale-sync/open-review.git
@@ -8,6 +8,7 @@ cd open-review
 pnpm install --frozen-lockfile
 pnpm build
 go run ./cmd/open-review review --workspace
+go run ./cmd/open-review review --workspace --preview
 ```
 
 Use `--repo /path/to/repository` to review a different checkout. For a nonempty review, set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY`. Clean workspaces need no key.

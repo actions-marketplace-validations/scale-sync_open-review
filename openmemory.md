@@ -8,7 +8,7 @@
 
 ## Overview
 
-open-review is an open-source, agentic code review tool. v0.5.0 is a source release with a Go local review CLI and a TypeScript review bridge. Package registry and GitHub Action distribution are future work. MIT licensed.
+open-review is an open-source, agentic code review tool. v0.6.0 is a source release with a Go local review CLI, visible file coverage, and a TypeScript review bridge. Package registry and GitHub Action distribution are future work. MIT licensed.
 
 **Repository:** github.com/scale-sync/open-review
 **Language:** TypeScript (strict mode, ESM-only)
@@ -48,16 +48,16 @@ open-review is an open-source, agentic code review tool. v0.5.0 is a source rele
 
 | File              | Exports                                                                    | Purpose                                                                                                  |
 | ----------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `env.ts`          | `loadConfig()`, `validateConfig()`, `config` singleton, `OpenReviewConfig` | Loads `.env` via dotenv, typed config object with defaults, validates API keys                            |
+| `env.ts`          | `loadConfig()`, `validateConfig()`, `config` singleton, `OpenReviewConfig` | Loads `.env` via dotenv, typed config object with defaults, validates API keys                           |
 | `instructions.ts` | `findInstructionFiles()`, `loadInstructions()`                             | Globs for REVIEW.md/AGENTS.md/CLAUDE.md/.cursorrules/.windsurfrules, hierarchical scoping, 10k token cap |
 
 ### core/src/github/ — GitHub API Layer ✅
 
-| File          | Exports                                                                                    | Purpose                                                                                                                                                                                        |
-| ------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `client.ts`   | `GitHubClient` class, `parsePRUrl()`, `getIssueComments()`, `PRMetadata`, `PRFile`         | Axios-based GitHub API client with rate-limit handling (403 + X-RateLimit-Remaining detection), 5xx retry (3x exponential backoff), 30s timeout, pagination, null-safe comment normalization    |
-| `diff.ts`     | `parseDiff()`, `detectMovesAndCopies()`, `filterDiffs()`                                   | Unified diff parser, Jaccard similarity-based copy/move detection (threshold: 0.8), include/exclude glob filtering                                                                             |
-| `comments.ts` | `CommentPoster` class, re-exports from `review/types.ts` + `review/formatter.ts`           | Batch review posting (single `POST /pulls/{pr}/reviews`), summary comment with replace-not-duplicate via `<!-- openreview-summary -->` HTML marker, chat reply via `/issues/{pr}/comments`, acknowledgement |
+| File          | Exports                                                                            | Purpose                                                                                                                                                                                                     |
+| ------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client.ts`   | `GitHubClient` class, `parsePRUrl()`, `getIssueComments()`, `PRMetadata`, `PRFile` | Axios-based GitHub API client with rate-limit handling (403 + X-RateLimit-Remaining detection), 5xx retry (3x exponential backoff), 30s timeout, pagination, null-safe comment normalization                |
+| `diff.ts`     | `parseDiff()`, `detectMovesAndCopies()`, `filterDiffs()`                           | Unified diff parser, Jaccard similarity-based copy/move detection (threshold: 0.8), include/exclude glob filtering                                                                                          |
+| `comments.ts` | `CommentPoster` class, re-exports from `review/types.ts` + `review/formatter.ts`   | Batch review posting (single `POST /pulls/{pr}/reviews`), summary comment with replace-not-duplicate via `<!-- openreview-summary -->` HTML marker, chat reply via `/issues/{pr}/comments`, acknowledgement |
 
 ### core/src/llm/ — LLM Router ✅
 
@@ -67,33 +67,33 @@ open-review is an open-source, agentic code review tool. v0.5.0 is a source rele
 
 ### core/src/review/ — Review Engine ✅
 
-| File              | Exports                                                                                                                            | Purpose                                                                                                                                                                                                                                                  |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `types.ts`        | `ReviewFinding`, `ReviewSummary`, `PRContext`, `Citation`, `FindingSeverity`, `FindingCategory`, `FindingSource`, `sortFindings()` | **Canonical type definitions** — single source of truth. Severity ordering: severe → non-severe → investigate → informational                                                                                                                            |
-| `formatter.ts`    | `formatSummaryComment()`, `formatInlineComment()`                                                                                  | Markdown formatters — severity badges (🔴🟠🔍ℹ️), severity breakdown table, GitHub `suggestion` syntax for fixes, linter attribution labels, trigger hints                                                                                               |
-| `linters.ts`      | `runLinters()`, `deduplicateFindings()`, individual parsers                                                                        | Parallel linter execution (Promise.allSettled, 30s timeout each). Parsers: `parseEslintOutput`, `parseRuffOutput`, `parseSemgrepOutput`, `parseShellcheckOutput`, `parseGitleaksOutput`. All hardened against malformed JSON. ENOENT → skip with warning |
-| `fast-review.ts`  | `runFastReview()`, `parseLLMResponse()`, `extractDiffLineMap()`                                                                    | Fast mode orchestrator: linters → structured LLM prompt (system + human) → robust JSON parsing (code fences, embedded arrays) → citation validation against diff line map → deduplication → severity sort                                                |
-| `snapshot.ts`     | `SnapshotBuilder` class, `SnapshotOptions`                                                                                         | Hybrid lazy file loader for RLM mode — in-memory cache with in-flight dedup, per-file and total byte caps, binary detection, lazy file tree from GitHub API                                                                                              |
-| `rlm-runner.ts`   | `runRLM()`, `RLMEvent`, `RLMEventHandler`, `RLMEventType`                                                                         | RLM deep mode LangGraph agentic loop: reason → code_writer → sandbox → observe → finalize. Max iteration/LLM call limits, finish_review signal, FETCH_FILE requests, event streaming                                                                    |
+| File             | Exports                                                                                                                            | Purpose                                                                                                                                                                                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `types.ts`       | `ReviewFinding`, `ReviewSummary`, `PRContext`, `Citation`, `FindingSeverity`, `FindingCategory`, `FindingSource`, `sortFindings()` | **Canonical type definitions** — single source of truth. Severity ordering: severe → non-severe → investigate → informational                                                                                                                            |
+| `formatter.ts`   | `formatSummaryComment()`, `formatInlineComment()`                                                                                  | Markdown formatters — severity badges (🔴🟠🔍ℹ️), severity breakdown table, GitHub `suggestion` syntax for fixes, linter attribution labels, trigger hints                                                                                               |
+| `linters.ts`     | `runLinters()`, `deduplicateFindings()`, individual parsers                                                                        | Parallel linter execution (Promise.allSettled, 30s timeout each). Parsers: `parseEslintOutput`, `parseRuffOutput`, `parseSemgrepOutput`, `parseShellcheckOutput`, `parseGitleaksOutput`. All hardened against malformed JSON. ENOENT → skip with warning |
+| `fast-review.ts` | `runFastReview()`, `parseLLMResponse()`, `extractDiffLineMap()`                                                                    | Fast mode orchestrator: linters → structured LLM prompt (system + human) → robust JSON parsing (code fences, embedded arrays) → citation validation against diff line map → deduplication → severity sort                                                |
+| `snapshot.ts`    | `SnapshotBuilder` class, `SnapshotOptions`                                                                                         | Hybrid lazy file loader for RLM mode — in-memory cache with in-flight dedup, per-file and total byte caps, binary detection, lazy file tree from GitHub API                                                                                              |
+| `rlm-runner.ts`  | `runRLM()`, `RLMEvent`, `RLMEventHandler`, `RLMEventType`                                                                          | RLM deep mode LangGraph agentic loop: reason → code_writer → sandbox → observe → finalize. Max iteration/LLM call limits, finish_review signal, FETCH_FILE requests, event streaming                                                                     |
 
 ### core/src/chat/ — Codebase-Aware Chat ✅
 
-| File               | Exports                                                    | Purpose                                                                                                                                                                     |
-| ------------------ | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `chat-handler.ts`  | `handleChatMention()`, `CommentEvent`, `ChatContext`       | Handles `@openreview` mentions in PR comments — question extraction, thread history loading via `getIssueComments()`, streaming LLM response, citation validation, bot loop prevention, empty answer guard |
-| `suggestions.ts`   | `generateSuggestions()`                                    | Generates 4–5 follow-up questions (≤ 8 words each) using sub LLM, appended as blockquote list to chat replies                                                              |
+| File              | Exports                                              | Purpose                                                                                                                                                                                                    |
+| ----------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chat-handler.ts` | `handleChatMention()`, `CommentEvent`, `ChatContext` | Handles `@openreview` mentions in PR comments — question extraction, thread history loading via `getIssueComments()`, streaming LLM response, citation validation, bot loop prevention, empty answer guard |
+| `suggestions.ts`  | `generateSuggestions()`                              | Generates 4–5 follow-up questions (≤ 8 words each) using sub LLM, appended as blockquote list to chat replies                                                                                              |
 
 ### core/src/learnings/ — Persistent Learnings DB ✅
 
-| File                  | Exports                                                           | Purpose                                                                                                                                                                    |
-| --------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `learnings-store.ts`  | `LearningsStore` class, `containsTrigger()`, `formatLearningsForPrompt()`, `Learning` | JSON-file CRUD per repo (`~/.openreview/learnings/<org>-<repo>.json`), trigger phrase detection ("false positive", "ignore this", etc.), max 50 learnings with auto-pruning of oldest unused, usage tracking, prompt injection with 2k token cap |
+| File                 | Exports                                                                               | Purpose                                                                                                                                                                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `learnings-store.ts` | `LearningsStore` class, `containsTrigger()`, `formatLearningsForPrompt()`, `Learning` | JSON-file CRUD per repo (`~/.openreview/learnings/<org>-<repo>.json`), trigger phrase detection ("false positive", "ignore this", etc.), max 50 learnings with auto-pruning of oldest unused, usage tracking, prompt injection with 2k token cap |
 
 ### core/src/sandbox/ — Deno Sandbox ✅
 
-| File              | Exports                                              | Purpose                                                                                                                                                                     |
-| ----------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deno-runner.ts`  | `executeSandboxed()`, `verifyDenoInstallation()`, `SandboxResult` | Deno 2.7+ sandboxed code execution with explicit permission flags (`--allow-read`, `--deny-net`, `--deny-write`, `--deny-env`, `--deny-run`), 30s hard timeout via AbortController, GLOBALS injection, env variable stripping to prevent secret leakage |
+| File             | Exports                                                           | Purpose                                                                                                                                                                                                                                                 |
+| ---------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deno-runner.ts` | `executeSandboxed()`, `verifyDenoInstallation()`, `SandboxResult` | Deno 2.7+ sandboxed code execution with explicit permission flags (`--allow-read`, `--deny-net`, `--deny-write`, `--deny-env`, `--deny-run`), 30s hard timeout via AbortController, GLOBALS injection, env variable stripping to prevent secret leakage |
 
 ### core/src/server/ — Express API Server 🔲
 
@@ -101,9 +101,9 @@ Placeholder. Will contain Express 5 internal API for future web UI.
 
 ### core/src/trace/ — JSON Trace Logger ✅
 
-| File         | Exports                                           | Purpose                                                                                                                                                                     |
-| ------------ | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `logger.ts`  | `TraceLogger` class, `TraceEntry`, `TraceMeta`    | Per-review trace files at `~/.openreview/traces/<timestamp>-<owner>-<repo>-<pr>.json`. Logs fast review entries, RLM iterations, findings, and session metadata. Secret scrubbing (OpenAI/GitHub/Slack keys). Best-effort write (try/catch on close) |
+| File        | Exports                                        | Purpose                                                                                                                                                                                                                                              |
+| ----------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `logger.ts` | `TraceLogger` class, `TraceEntry`, `TraceMeta` | Per-review trace files at `~/.openreview/traces/<timestamp>-<owner>-<repo>-<pr>.json`. Logs fast review entries, RLM iterations, findings, and session metadata. Secret scrubbing (OpenAI/GitHub/Slack keys). Best-effort write (try/catch on close) |
 
 ---
 
@@ -120,6 +120,7 @@ Enforced by `eslint-plugin-import-x`: `builtin → external → internal → par
 ### Finding Flow
 
 **Fast mode:**
+
 ```
 PR Event
   → GitHubClient.getPRDiff() + getPRFiles()
@@ -133,6 +134,7 @@ PR Event
 ```
 
 **RLM deep mode:**
+
 ```
 PR Event
   → SnapshotBuilder (pre-load diff files, lazy fetch others)
@@ -220,29 +222,29 @@ tests/core/
 
 ## Bugs Found & Fixed (Week 3 QA)
 
-| # | Severity | Module | Fix |
-|---|----------|--------|-----|
-| 1 | Bug | `comments.ts` | `postChatReply` was POSTing to invalid GitHub endpoint — fixed to `/issues/{prNumber}/comments` |
-| 2 | Security | `deno-runner.ts` | Added explicit `--deny-net/write/env/run` flags (was relying on Deno defaults) |
-| 3 | Bug | `chat-handler.ts` | Replaced private `client['api']` access with public `getIssueComments()` method |
-| 4 | Bug | `snapshot.ts` | Used `ParsedDiff.newPath` (non-existent) — fixed to `ParsedDiff.file` |
-| 5 | Bug | `client.ts` | `getIssueComments` crashed on deleted users (null `user`) — added null-safety filter |
-| 6 | Bug | `snapshot.ts` | Concurrent `getFile` calls caused double-fetching — added in-flight promise tracking |
-| 7 | Bug | `learnings-store.test.ts` | Floating promise — assertions never ran — fixed to `async`/`await` |
-| 8 | Bug | `suggestions.test.ts` | Error-path test was testing empty-answer instead of LLM throw — fixed mock |
-| 9 | Edge | `chat-handler.ts` | Empty LLM response posted blank reply — added guard |
-| 10 | Edge | `trace/logger.ts` | `writeFileSync` in `close()` could crash review — added try/catch |
+| #   | Severity | Module                    | Fix                                                                                             |
+| --- | -------- | ------------------------- | ----------------------------------------------------------------------------------------------- |
+| 1   | Bug      | `comments.ts`             | `postChatReply` was POSTing to invalid GitHub endpoint — fixed to `/issues/{prNumber}/comments` |
+| 2   | Security | `deno-runner.ts`          | Added explicit `--deny-net/write/env/run` flags (was relying on Deno defaults)                  |
+| 3   | Bug      | `chat-handler.ts`         | Replaced private `client['api']` access with public `getIssueComments()` method                 |
+| 4   | Bug      | `snapshot.ts`             | Used `ParsedDiff.newPath` (non-existent) — fixed to `ParsedDiff.file`                           |
+| 5   | Bug      | `client.ts`               | `getIssueComments` crashed on deleted users (null `user`) — added null-safety filter            |
+| 6   | Bug      | `snapshot.ts`             | Concurrent `getFile` calls caused double-fetching — added in-flight promise tracking            |
+| 7   | Bug      | `learnings-store.test.ts` | Floating promise — assertions never ran — fixed to `async`/`await`                              |
+| 8   | Bug      | `suggestions.test.ts`     | Error-path test was testing empty-answer instead of LLM throw — fixed mock                      |
+| 9   | Edge     | `chat-handler.ts`         | Empty LLM response posted blank reply — added guard                                             |
+| 10  | Edge     | `trace/logger.ts`         | `writeFileSync` in `close()` could crash review — added try/catch                               |
 
 ---
 
 ## Progress
 
-| Phase | Week | Status      | Key Deliverables                                                                         |
-| ----- | ---- | ----------- | ---------------------------------------------------------------------------------------- |
-| 1     | 1    | ✅ Complete | Monorepo scaffold, config system, GitHub client, diff parser, comment poster, LLM router |
-| 1     | 2    | ✅ Complete | Review types, fast review engine, linter orchestration, formatters, SETUP.md             |
+| Phase | Week | Status      | Key Deliverables                                                                                                  |
+| ----- | ---- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1     | 1    | ✅ Complete | Monorepo scaffold, config system, GitHub client, diff parser, comment poster, LLM router                          |
+| 1     | 2    | ✅ Complete | Review types, fast review engine, linter orchestration, formatters, SETUP.md                                      |
 | 1     | 3    | ✅ Complete | Deno sandbox, hybrid snapshot, RLM loop, trace logger, chat handler, learnings store, 320 tests, comprehensive QA |
-| 1     | 4    | 🔲 Backlog  | CLI commands, GitHub Action handlers, SKILL.md, README, final testing & launch           |
+| 1     | 4    | 🔲 Backlog  | CLI commands, GitHub Action handlers, SKILL.md, README, final testing & launch                                    |
 
 Product decisions: `_decision_docs/` (PRD, Feature Spec)
 Planning docs: `_plan_docs/` (Milestones, TodoList)

@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/scale-sync/open-review/review/internal/diff"
 )
 
 const maxUntrackedBytes = 5 << 20
@@ -25,6 +27,7 @@ type Input struct {
 	Parents      []string
 	Diff         string
 	Files        []string
+	Changes      []diff.Change
 }
 
 type Options struct {
@@ -76,12 +79,15 @@ func workspace(ctx context.Context, in *Input) error {
 	} else {
 		in.BaseSHA = head
 	}
-	diff, files, err := diffBetween(ctx, in.RepoRoot, head)
+	patch, changes, err := diffBetween(ctx, in.RepoRoot, head)
 	if err != nil {
 		return err
 	}
-	in.Diff = diff
-	in.Files = files
+	in.Diff = patch
+	in.Changes = changes
+	for _, change := range changes {
+		in.Files = append(in.Files, change.Path)
+	}
 
 	names, err := git(ctx, in.RepoRoot, nil, "ls-files", "--others", "--exclude-standard", "-z")
 	if err != nil {
@@ -97,10 +103,14 @@ func workspace(ctx context.Context, in *Input) error {
 			return err
 		}
 		if !info.Mode().IsRegular() {
-			return fmt.Errorf("untracked path is not a regular file: %q", path)
+			in.Files = append(in.Files, path)
+			in.Changes = append(in.Changes, diff.Change{Path: path, Status: "added", Untracked: true, InputIssue: "unsafe_input"})
+			continue
 		}
 		if info.Size() > maxUntrackedBytes {
-			return fmt.Errorf("untracked file exceeds %d bytes: %q", maxUntrackedBytes, path)
+			in.Files = append(in.Files, path)
+			in.Changes = append(in.Changes, diff.Change{Path: path, Status: "added", Untracked: true, InputIssue: "size_limit"})
+			continue
 		}
 		part, err := gitDiffNoIndex(ctx, in.RepoRoot, path)
 		if err != nil {
@@ -108,6 +118,7 @@ func workspace(ctx context.Context, in *Input) error {
 		}
 		in.Diff += part
 		in.Files = append(in.Files, path)
+		in.Changes = append(in.Changes, diff.Untracked(path, part))
 	}
 	return nil
 }
@@ -131,7 +142,10 @@ func branch(ctx context.Context, in *Input, base, head string) error {
 		return fmt.Errorf("merge base: %w", err)
 	}
 	in.MergeBaseSHA = strings.TrimSpace(string(mergeBase))
-	in.Diff, in.Files, err = diffBetween(ctx, in.RepoRoot, in.MergeBaseSHA, in.HeadSHA)
+	in.Diff, in.Changes, err = diffBetween(ctx, in.RepoRoot, in.MergeBaseSHA, in.HeadSHA)
+	for _, change := range in.Changes {
+		in.Files = append(in.Files, change.Path)
+	}
 	return err
 }
 
@@ -161,22 +175,26 @@ func commit(ctx context.Context, in *Input, ref string) error {
 	if err != nil {
 		return err
 	}
-	in.Diff, in.Files, err = diffBetween(ctx, in.RepoRoot, in.BaseSHA, sha)
+	in.Diff, in.Changes, err = diffBetween(ctx, in.RepoRoot, in.BaseSHA, sha)
+	for _, change := range in.Changes {
+		in.Files = append(in.Files, change.Path)
+	}
 	return err
 }
 
-func diffBetween(ctx context.Context, root string, revs ...string) (string, []string, error) {
-	args := append([]string{"diff", "--no-ext-diff", "--no-textconv", "--no-color", "--find-renames", "--binary"}, revs...)
-	diff, err := git(ctx, root, nil, append(args, "--")...)
+func diffBetween(ctx context.Context, root string, revs ...string) (string, []diff.Change, error) {
+	args := append([]string{"diff", "--no-ext-diff", "--no-textconv", "--no-color", "--find-renames", "--find-copies", "--binary"}, revs...)
+	patch, err := git(ctx, root, nil, append(args, "--")...)
 	if err != nil {
 		return "", nil, err
 	}
-	nameArgs := append([]string{"diff", "--name-only", "-z", "--find-renames"}, revs...)
+	nameArgs := append([]string{"diff", "--name-status", "-z", "--find-renames", "--find-copies"}, revs...)
 	names, err := git(ctx, root, nil, append(nameArgs, "--")...)
 	if err != nil {
 		return "", nil, err
 	}
-	return string(diff), splitNUL(names), nil
+	changes, err := diff.Parse(string(patch), names)
+	return string(patch), changes, err
 }
 
 func resolveCommit(ctx context.Context, root, ref string) (string, error) {

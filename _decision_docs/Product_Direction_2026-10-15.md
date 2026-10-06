@@ -29,7 +29,7 @@ One release contains exactly three features. The version sequence and individual
 - The sequence begins v0.5.0, v0.6.0, v0.7.0, v0.8.0, v0.9.0, then v1.0.0 and subsequent minor versions. Every version has three features, a tested push, human-written notes, and a GitHub release.
 - The release roadmap has three major groups: daily review foundation (v0.5.0–v0.9.0), review depth and workflow (v1.0.0–v1.6.0), and ecosystem and distribution (v1.7.0–v1.12.0).
 - Four SDKs follow the third release once the review API is stable: Go, TypeScript 7, Python, and Rust, published through Go modules, npm, PyPI, and crates.io respectively. They are scheduled at v1.11.0–v1.12.0; no registry publication precedes them.
-- The existing package versions are `1.0.0` despite no v1 tag, and the current tag workflow attempts npm publication. Reconcile metadata and remove that publish step before creating v0.5.0.
+- Resolved in v0.5.0: package metadata follows the release version, and tags create GitHub releases without package registry publication.
 - The Go-dominant CLI and Action must be proven by their release gates. Later language SDKs share the same engine and contract.
 
 ## Open decisions

@@ -15,16 +15,28 @@ import (
 	"github.com/scale-sync/open-review/review/internal/model"
 )
 
-type Options = gitcmd.Options
+type Options struct {
+	Repo          string
+	Mode          string
+	Base          string
+	Head          string
+	Commit        string
+	Include       []string
+	Exclude       []string
+	MaxFiles      int
+	MaxFileBytes  int
+	MaxPatchBytes int
+}
 type Request = model.Request
 type Result = model.Result
+type CoverageEntry = model.CoverageEntry
 
 func Prepare(ctx context.Context, opts Options) (Request, error) {
-	in, err := gitcmd.Prepare(ctx, opts)
+	in, err := gitcmd.Prepare(ctx, gitcmd.Options{Repo: opts.Repo, Mode: opts.Mode, Base: opts.Base, Head: opts.Head, Commit: opts.Commit})
 	if err != nil {
 		return Request{}, err
 	}
-	return Request{
+	req := Request{
 		ContractVersion: model.ContractVersion,
 		Mode:            in.Mode,
 		RepoRoot:        in.RepoRoot,
@@ -37,7 +49,9 @@ func Prepare(ctx context.Context, opts Options) (Request, error) {
 		Parents:         in.Parents,
 		Diff:            in.Diff,
 		Files:           in.Files,
-	}, nil
+		Changes:         in.Changes,
+	}
+	return agent.Select(req, agent.Selection{Include: opts.Include, Exclude: opts.Exclude, MaxFiles: opts.MaxFiles, MaxFileBytes: opts.MaxFileBytes, MaxPatchBytes: opts.MaxPatchBytes})
 }
 
 func Run(ctx context.Context, req Request) (Result, error) {
@@ -60,7 +74,9 @@ func runBridge(ctx context.Context, req Request) (model.BridgeResponse, error) {
 	if _, err := os.Stat(path); err != nil {
 		return model.BridgeResponse{}, fmt.Errorf("review bridge unavailable at %q; run pnpm build: %w", path, err)
 	}
-	input, err := json.Marshal(req)
+	bridgeReq := req
+	bridgeReq.Changes, bridgeReq.Coverage = nil, nil
+	input, err := json.Marshal(bridgeReq)
 	if err != nil {
 		return model.BridgeResponse{}, err
 	}

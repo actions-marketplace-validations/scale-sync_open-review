@@ -1,5 +1,5 @@
 // @openreview/core — entry point
-export const VERSION = '0.5.0';
+export const VERSION = '0.6.0';
 
 // Config
 export { config, loadConfig, validateConfig } from './config/env.js';
@@ -25,8 +25,12 @@ export type { ParsedDiff, Hunk, Line, MoveEvent } from './github/diff.js';
 export { CommentPoster } from './github/comments.js';
 
 // Review
-export { runFastReview, buildFastReviewSummary } from './review/fast-review.js';
-export { fingerprintPullRequestDiff, normalizeDiffForFingerprint, extractDiffForFiles } from './review/diff-fingerprint.js';
+export { runFastReview, buildFastReviewSummary, MAX_CHUNK_CHARS } from './review/fast-review.js';
+export {
+  fingerprintPullRequestDiff,
+  normalizeDiffForFingerprint,
+  extractDiffForFiles,
+} from './review/diff-fingerprint.js';
 export { isReviewableFile, filterReviewableFiles } from './review/reviewable-files.js';
 export { runRLM } from './review/rlm-runner.js';
 export type { RLMEvent, RLMEventHandler, RLMEventType } from './review/rlm-runner.js';

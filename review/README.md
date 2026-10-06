@@ -1,9 +1,11 @@
 # Local review engine
 
-`cmd/open-review` is the Go command. `gitcmd` resolves local Git inputs, `agent` checks reviewer output, and `model` defines the versioned JSON request and response. The JSON shape is recorded in `schema/review-v1.json`.
+`cmd/open-review` is the Go command. `gitcmd` resolves local Git inputs, `diff` records each full patch and its metadata, `agent` selects files and checks reviewer output, and `model` defines the versioned JSON request and response. The current JSON shape is recorded in `schema/review-v2.json`.
 
-Use `go run ./cmd/open-review review --workspace` from the repository root after `pnpm build`. `--repo` selects a different checkout. Choose one mode: `--workspace`, `--base REF --head REF`, or `--commit REF`. Add `--output json` for machine-readable output.
+Use `go run ./cmd/open-review review --workspace` from the repository root after `pnpm build`. `--repo` selects a different checkout. Choose one mode: `--workspace`, `--base REF --head REF`, or `--commit REF`. Add `--output json` for machine-readable output. `--preview` shows the coverage manifest without calling a model.
 
 For nonempty changes, set a supported model API key. The Go process invokes the built TypeScript bridge. It defaults to `cli/dist/local-bridge.mjs` relative to the current directory, or to `local-bridge.mjs` beside a built Go executable. `OPEN_REVIEW_BRIDGE` overrides the path. Empty changes need no API key.
 
-Merge commits compare against their first parent. Untracked files must be regular files of at most 5 MiB each. The current reviewer may shorten very large file diffs to fit the model window; coverage reporting is scheduled for a later release.
+Files are selected in path order. `--include GLOB` and `--exclude GLOB` are repeatable; a filename glob matches at any depth, `**` spans folders, and a trailing `/` matches a folder. User exclusions win over explicit includes. Explicit includes can override generated, dependency, and supported-file defaults, but never unsafe paths, binary patches, symlinks, or size limits. The default limits are 100 files, 1 MiB per full patch, and 38,000 bytes sent per file; use `--max-files`, `--max-file-bytes`, and `--max-patch-bytes` to adjust them. Patches beyond the send budget are marked `partial`, while the full patch stays in the JSON change record. The bridge receives only selected content.
+
+Coverage starts as `selected`, `partial`, or `skipped`. On return, selected files become `reviewed`; bridge errors mark attempted files `failed`. Merge commits compare against their first parent. Untracked files must be regular files of at most 5 MiB each.

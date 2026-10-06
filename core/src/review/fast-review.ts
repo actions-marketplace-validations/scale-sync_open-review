@@ -108,7 +108,7 @@ function normalizeCategory(raw: string): 'bug' | 'flag' {
 /* ------------------------------------------------------------------ */
 
 /** Max chars per LLM call (~40K chars ≈ ~10K tokens, safe for any model) */
-const MAX_CHUNK_CHARS = 40_000;
+export const MAX_CHUNK_CHARS = 40_000;
 
 interface DiffChunk {
   diff: string;
@@ -119,7 +119,7 @@ interface DiffChunk {
  * Split a unified diff into chunks that fit within the LLM token budget.
  * Each chunk contains complete file diffs (never splits a file mid-diff).
  */
-function chunkDiff(rawDiff: string, files: string[]): DiffChunk[] {
+function chunkDiff(rawDiff: string, files: string[], preselected = false): DiffChunk[] {
   // Split diff by file boundaries, keeping only reviewable files — this must
   // happen before the size check below, otherwise small PRs (the common case)
   // skip filtering entirely and send lockfiles/generated/binary diffs to the LLM.
@@ -129,7 +129,7 @@ function chunkDiff(rawDiff: string, files: string[]): DiffChunk[] {
   for (const part of parts) {
     if (!part.trim()) continue;
     const fileMatch = /^diff --git a\/(.+?) b\/(.+?)$/m.exec(part);
-    if (fileMatch && isReviewableFile(fileMatch[2])) {
+    if (fileMatch && (preselected || isReviewableFile(fileMatch[2]))) {
       fileDiffs.push({ file: fileMatch[2], diff: part });
     }
   }
@@ -157,7 +157,8 @@ function chunkDiff(rawDiff: string, files: string[]): DiffChunk[] {
 
     // If a single file exceeds the limit, truncate it
     if (fd.diff.length > MAX_CHUNK_CHARS) {
-      const truncated = fd.diff.slice(0, MAX_CHUNK_CHARS - 200) + '\n... [truncated — file too large]\n';
+      const truncated =
+        fd.diff.slice(0, MAX_CHUNK_CHARS - 200) + '\n... [truncated — file too large]\n';
       chunks.push({ diff: truncated, files: [fd.file] });
       continue;
     }
@@ -171,7 +172,9 @@ function chunkDiff(rawDiff: string, files: string[]): DiffChunk[] {
     chunks.push({ diff: currentDiff, files: currentFiles });
   }
 
-  return chunks.length > 0 ? chunks : [{ diff: filteredDiff.slice(0, MAX_CHUNK_CHARS), files: filteredFiles }];
+  return chunks.length > 0
+    ? chunks
+    : [{ diff: filteredDiff.slice(0, MAX_CHUNK_CHARS), files: filteredFiles }];
 }
 
 /* ------------------------------------------------------------------ */
@@ -193,6 +196,7 @@ function chunkDiff(rawDiff: string, files: string[]): DiffChunk[] {
 export async function runFastReview(
   pr: PRContext,
   repoPath?: string,
+  preselected = false,
 ): Promise<{ findings: ReviewFinding[]; summary: ReviewSummary; trace: ReviewTrace }> {
   const start = Date.now();
   const trace: ReviewTrace = {
@@ -206,13 +210,13 @@ export async function runFastReview(
   };
 
   // 1. Filter non-reviewable files
-  const reviewableFiles = pr.files.filter(isReviewableFile);
+  const reviewableFiles = preselected ? pr.files : pr.files.filter(isReviewableFile);
 
   // 2. Run linters (if we have a local checkout)
   const linterFindings = repoPath ? await runLinters(reviewableFiles, repoPath) : [];
 
   // 3. Chunk the diff for LLM processing
-  const chunks = chunkDiff(pr.diff, reviewableFiles);
+  const chunks = chunkDiff(pr.diff, reviewableFiles, preselected);
 
   // 4. Review each chunk
   let allAiFindings: ReviewFinding[] = [];
@@ -437,7 +441,7 @@ function getFileTypeInstructions(fileType: DiffFileType): string[] {
         '- Security: privileged containers, runAsRoot, overly permissive RBAC',
         '- Deprecated API versions (extensions/v1beta1, etc.)',
         '- Missing liveness/readiness probes',
-        '- Missing labels or selectors that don\'t match',
+        "- Missing labels or selectors that don't match",
         '- Hardcoded environment-specific values that should be templated',
         '- Inconsistencies between similar deployment/service configs',
       ];
@@ -461,7 +465,7 @@ function getFileTypeInstructions(fileType: DiffFileType): string[] {
         '- Broken internal links or references to renamed/removed files',
         '- Outdated version numbers, dependency references, or API endpoints',
         '- Missing sections in structured docs (parameters, examples, return values)',
-        '- Factual inaccuracies about the system\'s behavior',
+        "- Factual inaccuracies about the system's behavior",
         '- Unclear or ambiguous instructions that could mislead users',
       ];
     default:
@@ -474,7 +478,11 @@ function getAntiEmptyInstruction(fileType: DiffFileType): string {
 
   return (
     '\n\nIMPORTANT: This PR modifies ' +
-    (fileType === 'k8s' ? 'Kubernetes/infrastructure' : fileType === 'config' ? 'configuration' : 'documentation') +
+    (fileType === 'k8s'
+      ? 'Kubernetes/infrastructure'
+      : fileType === 'config'
+        ? 'configuration'
+        : 'documentation') +
     ' files. Config and documentation errors cause production outages and user confusion ' +
     'just like code bugs. You MUST provide at least one finding — even if it is an ' +
     '"informational" finding confirming the structure is valid and noting implications of the change. ' +
@@ -499,7 +507,8 @@ function buildCompactPrompt(_pr: PRContext, fileType: DiffFileType): string[] {
   const antiEmpty = getAntiEmptyInstruction(fileType);
 
   return [
-    persona + ' Review this Pull Request diff and find bugs, security issues, and quality problems.',
+    persona +
+      ' Review this Pull Request diff and find bugs, security issues, and quality problems.',
     '',
     'Look for: logic errors, race conditions, missing error handling, security vulnerabilities,',
     'type mismatches, missing dependency array items (React hooks), resource leaks, and bad practices.',
@@ -528,7 +537,8 @@ function buildComprehensivePrompt(_pr: PRContext, fileType: DiffFileType): strin
   const antiEmpty = getAntiEmptyInstruction(fileType);
 
   return [
-    persona + ' Your task is to thoroughly review a Pull Request diff and produce actionable findings.',
+    persona +
+      ' Your task is to thoroughly review a Pull Request diff and produce actionable findings.',
     '',
     '## What to look for',
     'You MUST check every changed line for ALL of the following categories:',
@@ -593,7 +603,8 @@ function buildPrompt(
   linterFindings: ReviewFinding[],
 ): Array<{ role: string; content: string }> {
   const fileType = detectDiffFileType(pr.files);
-  const isSmallDiff = pr.diff.length <= SMALL_DIFF_THRESHOLD && pr.files.length <= SMALL_FILE_THRESHOLD;
+  const isSmallDiff =
+    pr.diff.length <= SMALL_DIFF_THRESHOLD && pr.files.length <= SMALL_FILE_THRESHOLD;
 
   const systemPrompt = isSmallDiff
     ? buildCompactPrompt(pr, fileType)
@@ -786,7 +797,8 @@ function normalizeFinding(
     const desc = raw.description;
     // Title = first sentence (up to 80 chars), explanation = full description
     const firstSentenceEnd = desc.search(/[.!?]\s/) + 1;
-    title = firstSentenceEnd > 0 ? desc.slice(0, Math.min(firstSentenceEnd, 80)) : desc.slice(0, 80);
+    title =
+      firstSentenceEnd > 0 ? desc.slice(0, Math.min(firstSentenceEnd, 80)) : desc.slice(0, 80);
     explanation = desc;
   }
 
