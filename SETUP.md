@@ -38,7 +38,7 @@ go run ./cmd/open-review review --repo /path/to/repository --base main --head fe
 go run ./cmd/open-review review --repo /path/to/repository --commit HEAD --output json
 ```
 
-An empty review returns without a model call. For a nonempty review, configure an API key in the environment or in a local `.env` file. The Go CLI runs Git and invokes the built TypeScript reviewer at `cli/dist/local-bridge.mjs`; `OPEN_REVIEW_BRIDGE` can select a different bridge path.
+An empty review returns without a model call. For a nonempty review, set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY` in the environment. The Go CLI reads Git changes, selects files, calls the model, and checks findings directly.
 
 ## Existing pull request CLI
 
@@ -48,7 +48,7 @@ The existing TypeScript CLI still reviews a GitHub pull request when provided a 
 node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123
 ```
 
-The GitHub Action source remains in `action/`, but v0.6.0 does not package it for direct use. There is no npm, PyPI, crates.io, or Go registry publication in this release.
+The GitHub Action lives in `action/` and includes a bundled adapter plus a Linux x64 Go executable. Use `scale-sync/open-review/action@v0.7.0` from a Linux x64 runner. It does not install dependencies when the event runs. There is no npm, PyPI, crates.io, or Go registry publication in this release.
 
 ## Test and troubleshoot
 
@@ -60,4 +60,4 @@ pnpm test
 go test ./...
 ```
 
-If `go run` reports that the bridge is unavailable, run `pnpm build` from the source checkout. If a nonempty review reports missing model configuration, set one supported API key. See [review behavior](review/README.md) and [the release notes](_plan_docs/releases/v0.6.0.md).
+If a nonempty review reports a missing model API key, set the key for the model selected by `MAIN_MODEL`. See [review behavior](review/README.md) and [the release notes](_plan_docs/releases/v0.7.0.md).

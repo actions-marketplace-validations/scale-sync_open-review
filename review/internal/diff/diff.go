@@ -77,6 +77,12 @@ func Untracked(path, patch string) Change {
 	return Change{Path: path, Status: "added", Untracked: true, Binary: isBinary(patch), Patch: patch, Hunks: parseHunks(patch)}
 }
 
+func FromPatch(change Change) Change {
+	change.Binary = isBinary(change.Patch)
+	change.Hunks = parseHunks(change.Patch)
+	return change
+}
+
 func statusName(code byte) string {
 	switch code {
 	case 'A':

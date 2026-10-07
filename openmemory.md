@@ -8,7 +8,7 @@
 
 ## Overview
 
-open-review is an open-source, agentic code review tool. v0.6.0 is a source release with a Go local review CLI, visible file coverage, and a TypeScript review bridge. Package registry and GitHub Action distribution are future work. MIT licensed.
+open-review is an open-source, agentic code review tool. v0.7.0 runs fast reviews in Go for local Git changes and GitHub pull requests, while TypeScript 7 keeps platform and conversation code. The GitHub Action is bundled for Linux x64. Package registry publication is future work. MIT licensed.
 
 **Repository:** github.com/scale-sync/open-review
 **Language:** TypeScript (strict mode, ESM-only)
@@ -21,12 +21,12 @@ open-review is an open-source, agentic code review tool. v0.6.0 is a source rele
 
 ### Monorepo Workspaces
 
-| Package   | npm Name             | Role                                                         | Status              |
-| --------- | -------------------- | ------------------------------------------------------------ | ------------------- |
-| `core/`   | `@openreview/core`   | Review engine — all business logic, LLM calls, GitHub API    | Active (private)    |
-| `cli/`    | `openreview`         | CLI wrapper (commander) — `review`, `ask`, `serve`, `traces` | Scaffold only       |
-| `action/` | `@openreview/action` | GitHub Action entry point — PR + comment event handlers      | Scaffold only       |
-| `web/`    | —                    | React 19 + Vite 8 web UI                                     | Phase 2 placeholder |
+| Package   | npm Name             | Role                                                          | Status              |
+| --------- | -------------------- | ------------------------------------------------------------- | ------------------- |
+| `core/`   | `@openreview/core`   | GitHub API, deep review, conversation, and Go process adapter | Active (private)    |
+| `cli/`    | `open-review`        | PR CLI and bounded local/PR `ask` conversation                | Active              |
+| `action/` | `@openreview/action` | GitHub Action entry point — PR + comment event handlers       | Bundled, Linux x64  |
+| `web/`    | —                    | React 19 + Vite 8 web UI                                      | Phase 2 placeholder |
 
 **Dependency flow:** `cli/` → `core/` ← `action/` (core is the shared dependency, never depends on cli/action)
 
@@ -72,16 +72,16 @@ open-review is an open-source, agentic code review tool. v0.6.0 is a source rele
 | `types.ts`       | `ReviewFinding`, `ReviewSummary`, `PRContext`, `Citation`, `FindingSeverity`, `FindingCategory`, `FindingSource`, `sortFindings()` | **Canonical type definitions** — single source of truth. Severity ordering: severe → non-severe → investigate → informational                                                                                                                            |
 | `formatter.ts`   | `formatSummaryComment()`, `formatInlineComment()`                                                                                  | Markdown formatters — severity badges (🔴🟠🔍ℹ️), severity breakdown table, GitHub `suggestion` syntax for fixes, linter attribution labels, trigger hints                                                                                               |
 | `linters.ts`     | `runLinters()`, `deduplicateFindings()`, individual parsers                                                                        | Parallel linter execution (Promise.allSettled, 30s timeout each). Parsers: `parseEslintOutput`, `parseRuffOutput`, `parseSemgrepOutput`, `parseShellcheckOutput`, `parseGitleaksOutput`. All hardened against malformed JSON. ENOENT → skip with warning |
-| `fast-review.ts` | `runFastReview()`, `parseLLMResponse()`, `extractDiffLineMap()`                                                                    | Fast mode orchestrator: linters → structured LLM prompt (system + human) → robust JSON parsing (code fences, embedded arrays) → citation validation against diff line map → deduplication → severity sort                                                |
+| `fast-review.ts` | `runFastReview()`, `parseLLMResponse()`, `extractDiffLineMap()`                                                                    | Retained comparison implementation; current CLI and Action fast reviews run through Go. Deletion awaits model parity proof.                                                                                                                              |
 | `snapshot.ts`    | `SnapshotBuilder` class, `SnapshotOptions`                                                                                         | Hybrid lazy file loader for RLM mode — in-memory cache with in-flight dedup, per-file and total byte caps, binary detection, lazy file tree from GitHub API                                                                                              |
 | `rlm-runner.ts`  | `runRLM()`, `RLMEvent`, `RLMEventHandler`, `RLMEventType`                                                                          | RLM deep mode LangGraph agentic loop: reason → code_writer → sandbox → observe → finalize. Max iteration/LLM call limits, finish_review signal, FETCH_FILE requests, event streaming                                                                     |
 
 ### core/src/chat/ — Codebase-Aware Chat ✅
 
-| File              | Exports                                              | Purpose                                                                                                                                                                                                    |
-| ----------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `chat-handler.ts` | `handleChatMention()`, `CommentEvent`, `ChatContext` | Handles `@openreview` mentions in PR comments — question extraction, thread history loading via `getIssueComments()`, streaming LLM response, citation validation, bot loop prevention, empty answer guard |
-| `suggestions.ts`  | `generateSuggestions()`                              | Generates 4–5 follow-up questions (≤ 8 words each) using sub LLM, appended as blockquote list to chat replies                                                                                              |
+| File              | Exports                                              | Purpose                                                                                                                                  |
+| ----------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `chat-handler.ts` | `handleChatMention()`, `CommentEvent`, `ChatContext` | Handles `@open-review` mentions in PR comments — bounded thread context, citation validation, follow-up suggestions, bot loop prevention |
+| `suggestions.ts`  | `generateSuggestions()`                              | Generates 4–5 follow-up questions (≤ 8 words each) using sub LLM, appended as blockquote list to chat replies                            |
 
 ### core/src/learnings/ — Persistent Learnings DB ✅
 
@@ -147,7 +147,7 @@ PR Event
 ### Chat Flow
 
 ```
-@openreview <question> comment
+@open-review <question> comment
   → extractQuestion() (strip mention prefix)
   → loadThreadHistory() via getIssueComments()
   → buildChatMessages() (system + thread history + question + diff)

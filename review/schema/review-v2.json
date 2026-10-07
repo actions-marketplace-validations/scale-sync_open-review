@@ -59,6 +59,8 @@
         "parents": { "type": "array", "items": { "type": "string" } },
         "diff": { "type": "string" },
         "files": { "type": "array", "items": { "type": "string" } },
+        "title": { "type": "string" },
+        "instructions": { "type": "string" },
         "changes": { "type": "array", "items": { "$ref": "#/$defs/change" } },
         "coverage": { "type": "array", "items": { "$ref": "#/$defs/coverage" } }
       }

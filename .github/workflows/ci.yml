@@ -27,6 +27,15 @@ jobs:
           go-version-file: go.mod
           cache: false
 
+      - name: Check packaged Action without dependencies
+        run: GITHUB_EVENT_NAME=workflow_dispatch node action/dist/index.mjs
+
+      - name: Check packaged Go executable
+        run: |
+          printf '%s' '{"contractVersion":2,"mode":"branch","repoRoot":"ci/repo","diff":"","files":[],"changes":[]}' |
+            action/bin/open-review-linux-amd64 review-json |
+            grep '"status":"empty"'
+
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm lint

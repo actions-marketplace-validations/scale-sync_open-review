@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   getPRDiff: vi.fn(),
   postAcknowledgement: vi.fn(),
   postReviewResults: vi.fn(),
-  runFastReview: vi.fn(),
+  runGoReview: vi.fn(),
 }));
 
 vi.mock('../../core/dist/index.mjs', async (importOriginal) => {
@@ -28,7 +28,7 @@ vi.mock('../../core/dist/index.mjs', async (importOriginal) => {
     loadRepoConfigFromGitHub: vi
       .fn()
       .mockResolvedValue({ instructions: '', reviewBuddyConfig: {} }),
-    runFastReview: mocks.runFastReview,
+    runGoReview: mocks.runGoReview,
   };
 });
 
@@ -50,9 +50,14 @@ describe('pull request Action review scope', () => {
       'diff --git a/first.ts b/first.ts\n@@ -0,0 +1 @@\n+first\n' +
         'diff --git a/second.ts b/second.ts\n@@ -0,0 +1 @@\n+second\n',
     );
-    mocks.runFastReview.mockResolvedValue({
+    mocks.runGoReview.mockResolvedValue({
+      status: 'complete',
       findings: [],
       summary: { duration: '0ms', totalFindings: 0 },
+      coverage: [
+        { path: 'first.ts', state: 'reviewed' },
+        { path: 'second.ts', state: 'skipped', reason: 'file_limit' },
+      ],
     });
     mocks.postReviewResults.mockResolvedValue({
       duration: '0ms',
@@ -61,17 +66,33 @@ describe('pull request Action review scope', () => {
     });
   });
 
-  it('never sends files beyond max-files to the model', async () => {
+  it('passes the complete PR and file limit to the Go engine', async () => {
     const context = {
       repo: { owner: 'test', repo: 'repo' },
       payload: { pull_request: { number: 1, title: 'Change', draft: false, body: '' } },
     } as unknown as Context;
     await handlePullRequest(context);
 
-    expect(mocks.runFastReview).toHaveBeenCalledOnce();
-    const input = mocks.runFastReview.mock.calls[0][0] as { files: string[]; diff: string };
-    expect(input.files).toEqual(['first.ts']);
+    expect(mocks.runGoReview).toHaveBeenCalledOnce();
+    const input = mocks.runGoReview.mock.calls[0][0] as { files: string[]; diff: string };
+    expect(input.files).toEqual(['first.ts', 'second.ts']);
     expect(input.diff).toContain('+first');
-    expect(input.diff).not.toContain('+second');
+    expect(input.diff).toContain('+second');
+    expect(mocks.runGoReview.mock.calls[0][2]).toBe(1);
+  });
+
+  it('does not publish an approved summary when no file was reviewed', async () => {
+    mocks.runGoReview.mockResolvedValue({
+      status: 'skipped',
+      findings: [],
+      coverage: [{ path: 'image.png', state: 'skipped', reason: 'unsupported_file' }],
+    });
+    const context = {
+      repo: { owner: 'test', repo: 'repo' },
+      payload: { pull_request: { number: 1, title: 'Change', draft: false, body: '' } },
+    } as unknown as Context;
+    await handlePullRequest(context);
+    expect(mocks.postReviewResults).not.toHaveBeenCalled();
+    expect(mocks.postAcknowledgement).toHaveBeenCalledTimes(2);
   });
 });

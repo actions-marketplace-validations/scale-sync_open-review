@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/scale-sync/open-review/review/internal/diff"
 	"github.com/scale-sync/open-review/review/internal/model"
 )
 
-type Reviewer func(context.Context, model.Request) (model.BridgeResponse, error)
+type Reviewer func(context.Context, model.Request) (model.ReviewResponse, error)
 
 func Run(ctx context.Context, req model.Request, reviewer Reviewer) (model.Result, error) {
 	if req.ContractVersion != model.ContractVersion || req.RepoRoot == "" {
@@ -45,8 +47,18 @@ func Run(ctx context.Context, req model.Request, reviewer Reviewer) (model.Resul
 	}
 	for _, raw := range response.Findings {
 		var finding model.Finding
-		if err := json.Unmarshal(raw, &finding); err != nil || !fileSet[finding.File] || finding.StartLine < 1 {
+		if err := json.Unmarshal(raw, &finding); err != nil || !fileSet[finding.File] || finding.StartLine < 1 || finding.EndLine < finding.StartLine || finding.Title == "" || len(finding.Title) > 120 || finding.Explanation == "" || !validSeverity(finding.Severity) || (finding.Category != "bug" && finding.Category != "flag") || finding.Source != "ai" || len(finding.Citations) != 1 || finding.Citations[0].File != finding.File || finding.Citations[0].StartLine != finding.StartLine || finding.Citations[0].EndLine != finding.EndLine {
 			return failed(result, fmt.Errorf("reviewer returned invalid finding"))
+		}
+		if len(req.Changes) > 0 {
+			if finding.EndLine-finding.StartLine > 50 {
+				return failed(result, errors.New("reviewer cited too many lines"))
+			}
+			for line := finding.StartLine; line <= finding.EndLine; line++ {
+				if !changedLine(req.Changes, finding.File, line) {
+					return failed(result, fmt.Errorf("reviewer cited a line outside the diff"))
+				}
+			}
 		}
 	}
 	result.Status = "complete"
@@ -62,6 +74,34 @@ func Run(ctx context.Context, req model.Request, reviewer Reviewer) (model.Resul
 	result.Summary = response.Summary
 	result.Trace = response.Trace
 	return result, nil
+}
+
+func validSeverity(severity string) bool {
+	switch severity {
+	case "severe", "non-severe", "investigate", "informational":
+		return true
+	}
+	return false
+}
+
+func changedLine(changes []diff.Change, file string, start int) bool {
+	for _, change := range changes {
+		if change.Path != file {
+			continue
+		}
+		for _, hunk := range change.Hunks {
+			line := hunk.NewStart
+			for _, content := range hunk.Lines {
+				if strings.HasPrefix(content, "+") && !strings.HasPrefix(content, "+++") && line == start {
+					return true
+				}
+				if strings.HasPrefix(content, "+") || strings.HasPrefix(content, " ") {
+					line++
+				}
+			}
+		}
+	}
+	return false
 }
 
 func failed(result model.Result, err error) (model.Result, error) {

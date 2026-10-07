@@ -1,17 +1,15 @@
 package review
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/scale-sync/open-review/review/internal/agent"
+	"github.com/scale-sync/open-review/review/internal/config"
+	"github.com/scale-sync/open-review/review/internal/diff"
 	"github.com/scale-sync/open-review/review/internal/gitcmd"
+	"github.com/scale-sync/open-review/review/internal/llm"
 	"github.com/scale-sync/open-review/review/internal/model"
 )
 
@@ -51,45 +49,28 @@ func Prepare(ctx context.Context, opts Options) (Request, error) {
 		Files:           in.Files,
 		Changes:         in.Changes,
 	}
-	return agent.Select(req, agent.Selection{Include: opts.Include, Exclude: opts.Exclude, MaxFiles: opts.MaxFiles, MaxFileBytes: opts.MaxFileBytes, MaxPatchBytes: opts.MaxPatchBytes})
+	req, err = agent.Select(req, agent.Selection{Include: opts.Include, Exclude: opts.Exclude, MaxFiles: opts.MaxFiles, MaxFileBytes: opts.MaxFileBytes, MaxPatchBytes: opts.MaxPatchBytes})
+	if err != nil {
+		return Request{}, err
+	}
+	req.Instructions = config.Instructions(req.RepoRoot, req.Files)
+	return req, nil
 }
 
 func Run(ctx context.Context, req Request) (Result, error) {
-	return agent.Run(ctx, req, runBridge)
+	return agent.Run(ctx, req, llm.Review)
 }
 
-func runBridge(ctx context.Context, req Request) (model.BridgeResponse, error) {
-	path := os.Getenv("OPEN_REVIEW_BRIDGE")
-	if path == "" {
-		if executable, err := os.Executable(); err == nil {
-			candidate := filepath.Join(filepath.Dir(executable), "local-bridge.mjs")
-			if _, err := os.Stat(candidate); err == nil {
-				path = candidate
-			}
+func PrepareExternal(req Request, maxFiles int) (Request, error) {
+	if req.ContractVersion != model.ContractVersion || req.Mode != "branch" || req.RepoRoot == "" {
+		return Request{}, fmt.Errorf("invalid external review request")
+	}
+	for i := range req.Changes {
+		change := &req.Changes[i]
+		if change.InputIssue == "" && (change.Patch == "" || !strings.HasPrefix(change.Patch, "diff --git ")) {
+			change.InputIssue = "missing_patch"
 		}
-		if path == "" {
-			path = filepath.Join("cli", "dist", "local-bridge.mjs")
-		}
+		*change = diff.FromPatch(*change)
 	}
-	if _, err := os.Stat(path); err != nil {
-		return model.BridgeResponse{}, fmt.Errorf("review bridge unavailable at %q; run pnpm build: %w", path, err)
-	}
-	bridgeReq := req
-	bridgeReq.Changes, bridgeReq.Coverage = nil, nil
-	input, err := json.Marshal(bridgeReq)
-	if err != nil {
-		return model.BridgeResponse{}, err
-	}
-	cmd := exec.CommandContext(ctx, "node", path)
-	cmd.Stdin = bytes.NewReader(input)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		return model.BridgeResponse{}, fmt.Errorf("review bridge: %s: %w", strings.TrimSpace(stderr.String()), err)
-	}
-	var result model.BridgeResponse
-	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
-		return model.BridgeResponse{}, fmt.Errorf("invalid review bridge output: %w", err)
-	}
-	return result, nil
+	return agent.Select(req, agent.Selection{MaxFiles: maxFiles})
 }

@@ -3,7 +3,7 @@ import type { Command } from 'commander';
 export function registerServeCommand(program: Command): void {
   program
     .command('serve')
-    .description('Start the OpenReview API server')
+    .description('Start the open-review API server')
     .option('--port <port>', 'Port to listen on', '3000')
     .option('--host <host>', 'Host to bind to', 'localhost')
     .action(async (opts) => {
@@ -15,14 +15,14 @@ export function registerServeCommand(program: Command): void {
         app.use(express.json());
 
         app.get('/health', (_req, res) => {
-          res.json({ status: 'ok', version: '0.6.0' });
+          res.json({ status: 'ok', version: '0.7.0' });
         });
 
         const port = parseInt(opts.port, 10);
         const host = opts.host as string;
 
         app.listen(port, host, () => {
-          console.log(`OpenReview server running at http://${host}:${port}`);
+          console.log(`open-review server running at http://${host}:${port}`);
           console.log('Endpoints:');
           console.log(`  GET  http://${host}:${port}/health`);
         });

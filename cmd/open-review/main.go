@@ -29,6 +29,9 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, output io.Writer) error {
+	if len(args) > 0 && args[0] == "review-json" {
+		return runJSON(ctx, args[1:], os.Stdin, output)
+	}
 	if len(args) == 0 || args[0] != "review" {
 		return errors.New("usage: open-review review [--repo PATH] [--workspace | --base REF --head REF | --commit REF] [--include GLOB] [--exclude GLOB] [--preview] [--output text|json]")
 	}
@@ -121,6 +124,38 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 		fmt.Fprintf(output, "- [%s] %s:%d %s\n", finding.Severity, finding.File, finding.StartLine, finding.Title)
 	}
 	if err := printCoverage(output, result.Coverage); err != nil {
+		return err
+	}
+	return reviewErr
+}
+
+func runJSON(ctx context.Context, args []string, input io.Reader, output io.Writer) error {
+	flags := flag.NewFlagSet("review-json", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	maxFiles := flags.Int("max-files", 100, "maximum selected files")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || *maxFiles < 1 {
+		return errors.New("invalid review-json arguments")
+	}
+	raw, err := io.ReadAll(io.LimitReader(input, 10_000_001))
+	if err != nil {
+		return err
+	}
+	if len(raw) > 10_000_000 {
+		return errors.New("review request exceeds 10 MB")
+	}
+	var req review.Request
+	if err := json.Unmarshal(raw, &req); err != nil {
+		return fmt.Errorf("invalid review JSON: %w", err)
+	}
+	req, err = review.PrepareExternal(req, *maxFiles)
+	if err != nil {
+		return err
+	}
+	result, reviewErr := review.Run(ctx, req)
+	if err := json.NewEncoder(output).Encode(result); err != nil {
 		return err
 	}
 	return reviewErr

@@ -31,19 +31,33 @@ type Request struct {
 	Parents         []string        `json:"parents,omitempty"`
 	Diff            string          `json:"diff"`
 	Files           []string        `json:"files"`
+	Title           string          `json:"title,omitempty"`
+	Instructions    string          `json:"instructions,omitempty"`
 	Changes         []diff.Change   `json:"changes,omitempty"`
 	Coverage        []CoverageEntry `json:"coverage,omitempty"`
 }
 
 type Finding struct {
-	Severity    string `json:"severity"`
-	File        string `json:"file"`
-	StartLine   int    `json:"startLine"`
-	Title       string `json:"title"`
-	Explanation string `json:"explanation"`
+	ID           string     `json:"id"`
+	Category     string     `json:"category"`
+	Severity     string     `json:"severity"`
+	File         string     `json:"file"`
+	StartLine    int        `json:"startLine"`
+	EndLine      int        `json:"endLine"`
+	Title        string     `json:"title"`
+	Explanation  string     `json:"explanation"`
+	SuggestedFix string     `json:"suggestedFix,omitempty"`
+	Source       string     `json:"source"`
+	Citations    []Citation `json:"citations"`
 }
 
-type BridgeResponse struct {
+type Citation struct {
+	File      string `json:"file"`
+	StartLine int    `json:"startLine"`
+	EndLine   int    `json:"endLine"`
+}
+
+type ReviewResponse struct {
 	Findings []json.RawMessage `json:"findings"`
 	Summary  json.RawMessage   `json:"summary"`
 	Trace    json.RawMessage   `json:"trace"`

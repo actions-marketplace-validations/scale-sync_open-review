@@ -3,9 +3,9 @@
 [![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Open-source, agentic code review tool. v0.6.0 adds visible file selection and coverage to local Git reviews. The existing TypeScript reviewer still powers model analysis while the Go engine is built out.
+Open-source, agentic code review tool. v0.7.0 runs fast reviews in Go for local Git changes and GitHub pull requests, with visible file coverage. TypeScript 7 handles GitHub events, comments, deep review, and conversation.
 
-## v0.6.0 from source
+## v0.7.0 from source
 
 Requires Go 1.23+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
 
@@ -21,24 +21,38 @@ go run ./cmd/open-review review --base main --head feature-branch
 go run ./cmd/open-review review --commit HEAD --output json
 ```
 
-Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v0.6.0 release notes](_plan_docs/releases/v0.6.0.md).
+Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v0.7.0 release notes](_plan_docs/releases/v0.7.0.md).
 
-## Existing PR review features
+## Current capabilities
 
-- **Self-hosted** — runs entirely on your infrastructure. Code never leaves your machine except to your chosen LLM API.
-- **Dual review modes** — Fast mode (single-shot, < 60s) and Deep/RLM mode (agentic loop with sandboxed code execution).
-- **Any LLM** — bring your own API key. OpenAI, Anthropic Claude, Google Gemini, or any OpenAI-compatible endpoint.
-- **Full GitHub sync** — findings posted as native PR review comments with inline suggestions.
-- **Built-in linters** — ESLint, Ruff, Semgrep, ShellCheck, Gitleaks run in parallel alongside AI review.
-- **Codebase-aware chat** — ask questions about your PR with full repo context via `@openreview`.
-- **Learns from feedback** — persistent learnings database avoids repeating false positives.
-- **Language & framework aware** — detects TypeScript, Python, Go, Rust, React, Next.js, and more for targeted review.
+- **Go fast review** — local changes and pull requests use one file-selection and model-review path.
+- **Deep/RLM review** — the existing TypeScript deep-review command remains available while its Go migration is planned.
+- **Model choice** — OpenAI, Anthropic, Gemini, and OpenAI-compatible chat endpoints.
+- **GitHub posting** — findings use PR review comments, while the summary preserves prior review state.
+- **Codebase-aware chat** — ask questions about bounded PR context via `@open-review`, or use `ask --repo PATH` locally.
+- **Team learnings** — the existing PR comment commands can list and remove stored learnings.
 
 ## Quick Start
 
 ### GitHub Action
 
-The Action source is retained during migration. It is not packaged as a usable GitHub Action in v0.6.0.
+The GitHub Action ships with a bundled TypeScript adapter and a Linux x64 Go executable. It runs from `action/` without installing dependencies during the event. A live PR posting smoke test still needs model credentials.
+
+```yaml
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: scale-sync/open-review/action@v0.7.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+```
 
 ### CLI (review any PR from your terminal)
 
@@ -63,13 +77,13 @@ node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123
 
 ### GitHub Comment Commands
 
-| Command                             | Description                         |
-| ----------------------------------- | ----------------------------------- |
-| `@openreview review`                | Trigger a fresh Fast mode review    |
-| `@openreview rlm`                   | Trigger Deep/RLM mode review        |
-| `@openreview <question>`            | Ask a codebase-aware question       |
-| `@openreview list learnings`        | List stored learnings for this repo |
-| `@openreview forget: <description>` | Delete a stored learning            |
+| Command                              | Description                         |
+| ------------------------------------ | ----------------------------------- |
+| `@open-review review`                | Trigger a fresh Fast mode review    |
+| `@open-review rlm`                   | Trigger Deep/RLM mode review        |
+| `@open-review <question>`            | Ask a codebase-aware question       |
+| `@open-review list learnings`        | List stored learnings for this repo |
+| `@open-review forget: <description>` | Delete a stored learning            |
 
 ## CLI Commands
 
@@ -152,7 +166,7 @@ See [`.env.example`](.env.example) for the full list with all linter toggles and
 
 ### `.reviewbuddy.yaml` (per-repo, version-controlled)
 
-Drop a `.reviewbuddy.yaml` at the repo root to customize review behavior without touching `.env`. It's read straight from the PR's head commit via the GitHub API — no local checkout needed, so it works from the CLI, the Action, and `@openreview` comment commands alike.
+Drop a `.reviewbuddy.yaml` at the repo root to customize review behavior without touching `.env`. It's read straight from the PR's head commit via the GitHub API — no local checkout needed, so it works from the CLI, the Action, and `@open-review` comment commands alike.
 
 ```yaml
 profile: chill # chill | assertive (default) — chill skips informational/stylistic nitpicks
@@ -192,7 +206,7 @@ Agentic review using LangGraph.js. The LLM reasons about the code, writes verifi
 
 When Deno is not installed, RLM automatically operates in reasoning-only mode — still effective, just without sandbox execution.
 
-Triggered via `@openreview rlm` or `--mode rlm`.
+Triggered via `@open-review rlm` or `--mode rlm`.
 
 ## Instruction Files
 

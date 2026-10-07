@@ -3,6 +3,9 @@ node_modules/
 
 # Build output
 dist/
+!action/dist/
+action/dist/*
+!action/dist/*.mjs
 
 # Environment
 .env

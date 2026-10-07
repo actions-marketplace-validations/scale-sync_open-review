@@ -1,11 +1,11 @@
 {
   "name": "@openreview/action",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "main": "dist/index.mjs",
   "scripts": {
-    "build": "tsdown src/index.ts --format esm --no-dts && tsc --emitDeclarationOnly --declarationMap false",
+    "build": "tsdown --config tsdown.config.ts && tsc --emitDeclarationOnly --declarationMap false && GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=false -ldflags='-s -w' -o bin/open-review-linux-amd64 ../cmd/open-review",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

@@ -1,6 +1,6 @@
 # Getting started with open-review
 
-v0.6.0 is a source release. Build it locally to review workspace changes, compare branches, or review one commit, with visible file coverage.
+v0.7.0 runs fast reviews in Go. Build it locally to review workspace changes, compare branches, or review one commit, with visible file coverage.
 
 ```bash
 git clone https://github.com/scale-sync/open-review.git

@@ -125,6 +125,18 @@ describe('handleChatMention', () => {
     expect(postedReplies[0].body).toContain('This is a test answer.');
   });
 
+  it('accepts the current mention and marks invalid line citations', async () => {
+    streamChunks = ['See ' + String.fromCharCode(96) + 'src/index.ts:99' + String.fromCharCode(96)];
+    const { handleChatMention } = await import('../../../core/src/chat/chat-handler.js');
+    const snapshot = createMockSnapshot();
+    vi.mocked(snapshot.getFile).mockResolvedValue('one line');
+    await handleChatMention(
+      { commentId: 125, body: '@open-review check this', user: 'developer1', prNumber: 42 },
+      createChatContext({ snapshot }),
+    );
+    expect(postedReplies[0].body).toContain('citation not verified');
+  });
+
   it('appends follow-up suggestions to the reply', async () => {
     const { handleChatMention } = await import('../../../core/src/chat/chat-handler.js');
 

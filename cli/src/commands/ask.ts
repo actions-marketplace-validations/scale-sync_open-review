@@ -3,10 +3,13 @@ import { createInterface } from 'node:readline';
 import {
   GitHubClient,
   createMainLLM,
+  extractDiffForFiles,
+  isContextCandidate,
   streamChat,
 } from '@openreview/core';
 import type { Command } from 'commander';
 
+import { loadLocalAskContext, markUnverifiedCitations } from './ask-context.js';
 
 export function registerAskCommand(program: Command): void {
   program
@@ -16,115 +19,134 @@ export function registerAskCommand(program: Command): void {
     .option('--url <url>', 'GitHub PR URL for context')
     .action(async (opts) => {
       try {
-        console.log('OpenReview Ask — Interactive Q&A');
-        console.log('Commands: reset, history, files, exit');
-        console.log('');
+        console.log('open-review Ask — Interactive Q&A');
+        console.log('Commands: reset, history, files, exit\n');
 
-        const thread: Array<{ role: string; content: string }> = [];
-        let snapshotFiles: string[] = [];
-
-        // Load PR context if URL provided
+        const thread: Array<{ role: 'human' | 'ai'; content: string }> = [];
+        let prContext = '';
+        let prPaths: string[] = [];
+        const prLines = new Map<string, number>();
         if (opts.url) {
           const { client, prNumber } = GitHubClient.fromPRUrl(opts.url);
-          const prMeta = await client.getPR(prNumber);
-          const diff = await client.getPRDiff(prNumber);
-          const files = await client.getPRFiles(prNumber);
-          snapshotFiles = files.map((f) => f.filename);
-
-          thread.push({
-            role: 'system',
-            content: [
-              'You are OpenReview, a codebase-aware assistant.',
-              `Repository: ${client.owner}/${client.repo}`,
-              `PR #${prNumber}: ${prMeta.title}`,
-              '',
-              'Diff:',
-              '```diff',
-              diff,
-              '```',
-            ].join('\n'),
-          });
-
-          console.log(`Loaded PR #${prNumber}: ${prMeta.title} (${files.length} files)`);
-          console.log('');
+          const [meta, diff, files] = await Promise.all([
+            client.getPR(prNumber),
+            client.getPRDiff(prNumber),
+            client.getPRFiles(prNumber),
+          ]);
+          prPaths = files.map((file) => file.filename);
+          const safePaths = prPaths.filter(isContextCandidate);
+          const snippets: string[] = [];
+          let remaining = 20_000;
+          for (const path of safePaths.slice(0, 8)) {
+            if (remaining <= 0) break;
+            try {
+              const content = (await client.getFileContent(path, meta.head.sha)).slice(
+                0,
+                Math.min(remaining, 3_000),
+              );
+              if (!content || content.includes('\0')) continue;
+              const lines = content.split('\n');
+              prLines.set(path, lines.length);
+              snippets.push(
+                path +
+                  '\n' +
+                  lines.map((line, index) => String(index + 1) + ': ' + line).join('\n'),
+              );
+              remaining -= content.length;
+            } catch {
+              continue;
+            }
+          }
+          prContext =
+            'You are open-review. Answer from this bounded PR diff and file excerpts. Cite code as path:line. If the answer is not present, say so.\n' +
+            'Repository: ' +
+            client.owner +
+            '/' +
+            client.repo +
+            '\n' +
+            'PR #' +
+            prNumber +
+            ': ' +
+            meta.title +
+            '\n' +
+            'Diff:\n' +
+            extractDiffForFiles(diff, safePaths).slice(0, 20_000) +
+            '\nFile excerpts:\n' +
+            snippets.join('\n\n');
+          console.log(
+            'Loaded PR #' + prNumber + ': ' + meta.title + ' (' + files.length + ' files)\n',
+          );
         }
 
         const rl = createInterface({
           input: process.stdin,
           output: process.stdout,
-          prompt: 'openreview> ',
+          prompt: 'open-review> ',
         });
-
+        let busy = false;
         rl.prompt();
-
         rl.on('line', async (input) => {
-          const trimmed = input.trim();
-
-          if (!trimmed) {
+          const question = input.trim();
+          if (!question) {
             rl.prompt();
             return;
           }
-
-          if (trimmed === 'exit' || trimmed === 'quit') {
+          if (question === 'exit' || question === 'quit') {
             rl.close();
             return;
           }
-
-          if (trimmed === 'reset') {
+          if (question === 'reset') {
             thread.length = 0;
             console.log('Thread cleared.');
             rl.prompt();
             return;
           }
-
-          if (trimmed === 'history') {
-            for (const msg of thread) {
-              if (msg.role === 'human') console.log(`You: ${msg.content.slice(0, 100)}`);
-              if (msg.role === 'ai') console.log(`AI: ${msg.content.slice(0, 100)}`);
-            }
+          if (question === 'history') {
+            for (const message of thread)
+              console.log(
+                (message.role === 'human' ? 'You: ' : 'AI: ') + message.content.slice(0, 100),
+              );
             rl.prompt();
             return;
           }
-
-          if (trimmed === 'files') {
-            if (snapshotFiles.length > 0) {
-              for (const f of snapshotFiles) console.log(`  ${f}`);
-            } else {
-              console.log('  No files loaded. Use --url to load a PR.');
-            }
+          if (question === 'files') {
+            const paths = opts.url ? prPaths : (await loadLocalAskContext(opts.repo, '')).paths;
+            for (const path of paths) console.log('  ' + path);
             rl.prompt();
             return;
           }
-
-          // Send question to LLM
-          thread.push({ role: 'human', content: trimmed });
-
+          if (busy) {
+            console.log('Waiting for the previous answer.');
+            return;
+          }
+          busy = true;
           try {
+            const local = opts.url ? null : await loadLocalAskContext(opts.repo, question);
+            const messages = [
+              { role: 'system', content: local?.prompt ?? prContext },
+              ...thread.slice(-10),
+              { role: 'human', content: question.slice(0, 2_000) },
+            ];
             const llm = createMainLLM();
-            let fullResponse = '';
-            for await (const chunk of streamChat(llm, thread)) {
-              process.stdout.write(chunk);
-              fullResponse += chunk;
-            }
-            console.log('\n');
-
-            thread.push({ role: 'ai', content: fullResponse });
+            let answer = '';
+            for await (const chunk of streamChat(llm, messages)) answer += chunk;
+            answer = markUnverifiedCitations(answer, local?.lineCounts ?? prLines);
+            console.log(answer + '\n');
+            thread.push(
+              { role: 'human', content: question.slice(0, 2_000) },
+              { role: 'ai', content: answer.slice(0, 4_000) },
+            );
           } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.error(`Error: ${msg}`);
+            console.error('Error: ' + (err instanceof Error ? err.message : String(err)));
+          } finally {
+            busy = false;
+            rl.prompt();
           }
-
-          rl.prompt();
         });
-
-        rl.on('close', () => {
-          console.log('Goodbye.');
-          process.exit(0);
-        });
+        rl.on('close', () => console.log('Goodbye.'));
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`Error: ${msg}\n`);
-        process.exit(1);
+        process.stderr.write('Error: ' + (err instanceof Error ? err.message : String(err)) + '\n');
+        process.exitCode = 1;
       }
     });
 }

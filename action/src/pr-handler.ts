@@ -5,12 +5,9 @@ import {
   GitHubClient,
   buildFastReviewSummary,
   loadRepoConfigFromGitHub,
-  runFastReview,
+  runGoReview,
 } from '@openreview/core';
 import type { PRContext } from '@openreview/core';
-
-import { selectActionDiff } from './review-scope.js';
-import type { ScopeEntry } from './review-scope.js';
 
 /**
  * Handle pull_request events: opened, synchronize, reopened, ready_for_review.
@@ -54,10 +51,9 @@ export async function handlePullRequest(context: Context): Promise<void> {
   // Post acknowledgement
   await poster.postAcknowledgement(
     prNumber,
-    '[INFO] **OpenReview** — Review started... results will appear shortly.',
+    '[INFO] **open-review** — Review started... results will appear shortly.',
   );
 
-  let coverage: ScopeEntry[] = [];
   try {
     const prMeta = await client.getPR(prNumber);
     const files = await client.getPRFiles(prNumber);
@@ -65,17 +61,6 @@ export async function handlePullRequest(context: Context): Promise<void> {
 
     const rawMaxFiles = core.getInput('max-files') || '100';
     if (!/^\d+$/.test(rawMaxFiles)) throw new Error('max-files must be a positive integer');
-    const scope = selectActionDiff(
-      diff,
-      files.map((file) => file.filename).sort(),
-      Number(rawMaxFiles),
-    );
-    coverage = scope.coverage;
-    for (const entry of scope.coverage) {
-      core.info(
-        `Review scope: ${entry.state} ${entry.file}${entry.reason ? ` (${entry.reason})` : ''}`,
-      );
-    }
 
     const { instructions, reviewBuddyConfig } = await loadRepoConfigFromGitHub(
       client,
@@ -93,21 +78,27 @@ export async function handlePullRequest(context: Context): Promise<void> {
         baseSha: prMeta.base.sha,
         author: prMeta.user.login,
       },
-      diff: scope.diff,
-      files: scope.files,
+      diff,
+      files: files.map((file) => file.filename),
       instructions,
       learnings: [],
     };
 
-    const { findings, summary } =
-      scope.files.length > 0
-        ? await runFastReview(prContext)
-        : { findings: [], summary: buildFastReviewSummary([], 0, 0) };
-
-    for (const entry of scope.coverage) {
+    const result = await runGoReview(prContext, files, Number(rawMaxFiles));
+    const { findings } = result;
+    const summary = result.summary ?? buildFastReviewSummary([], 0, 0);
+    for (const entry of result.coverage) {
       core.info(
-        `Review coverage: ${entry.state === 'selected' ? 'reviewed' : entry.state} ${entry.file}${entry.reason ? ` (${entry.reason})` : ''}`,
+        `Review coverage: ${entry.state} ${entry.path}${entry.reason ? ` (${entry.reason})` : ''}`,
       );
+    }
+    if (result.status === 'failed') throw new Error(result.error || 'Go review failed');
+    if (result.status === 'empty' || result.status === 'skipped') {
+      await poster.postAcknowledgement(
+        prNumber,
+        '[INFO] **open-review** — No reviewable files in this PR. See the Action log for coverage.',
+      );
+      return;
     }
     if (reviewBuddyConfig.finishing_touches) {
       summary.finishingTouches = reviewBuddyConfig.finishing_touches;
@@ -120,13 +111,10 @@ export async function handlePullRequest(context: Context): Promise<void> {
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    for (const entry of coverage) {
-      if (entry.state !== 'skipped') core.warning(`Review coverage: failed ${entry.file} (${msg})`);
-    }
     core.error(`Review failed: ${msg}`);
 
     // Post error comment so the user knows
-    await poster.postAcknowledgement(prNumber, `[ERROR] **OpenReview** — Review failed: ${msg}`);
+    await poster.postAcknowledgement(prNumber, `[ERROR] **open-review** — Review failed: ${msg}`);
 
     throw err;
   }

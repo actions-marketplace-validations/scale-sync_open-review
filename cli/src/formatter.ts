@@ -14,7 +14,9 @@ const SEVERITY_ICONS: Record<FindingSeverity, string> = {
 export function formatText(findings: ReviewFinding[], summary: ReviewSummary): string {
   const lines: string[] = [];
 
-  lines.push(`OpenReview — ${summary.mode} mode | ${summary.filesReviewed} files | ${summary.duration}`);
+  lines.push(
+    `open-review — ${summary.mode} mode | ${summary.filesReviewed} files | ${summary.duration}`,
+  );
   lines.push(`Findings: ${summary.totalFindings}`);
   lines.push('');
 
@@ -26,7 +28,9 @@ export function formatText(findings: ReviewFinding[], summary: ReviewSummary): s
   for (const f of findings) {
     const icon = SEVERITY_ICONS[f.severity] ?? '[?]';
     const source = f.source === 'linter' ? ` [${f.linterName}]` : '';
-    lines.push(`${icon} ${f.severity.toUpperCase()} ${f.file}:${f.startLine} — ${f.title}${source}`);
+    lines.push(
+      `${icon} ${f.severity.toUpperCase()} ${f.file}:${f.startLine} — ${f.title}${source}`,
+    );
     lines.push(`  ${f.explanation}`);
     if (f.suggestedFix) {
       lines.push(`  Fix: ${f.suggestedFix}`);
@@ -44,9 +48,11 @@ export function formatText(findings: ReviewFinding[], summary: ReviewSummary): s
 export function formatMarkdown(findings: ReviewFinding[], summary: ReviewSummary): string {
   const lines: string[] = [];
 
-  lines.push(`## OpenReview Summary`);
+  lines.push(`## open-review Summary`);
   lines.push('');
-  lines.push(`**Files reviewed:** ${summary.filesReviewed} | **Duration:** ${summary.duration} | **Mode:** ${summary.mode}`);
+  lines.push(
+    `**Files reviewed:** ${summary.filesReviewed} | **Duration:** ${summary.duration} | **Mode:** ${summary.mode}`,
+  );
   lines.push('');
   lines.push('| Severity | Count |');
   lines.push('|---|---|');

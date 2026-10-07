@@ -1,6 +1,6 @@
 {
   "name": "open-review",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "bin": {
     "open-review": "dist/main.mjs"
@@ -8,7 +8,7 @@
   "main": "dist/main.mjs",
   "types": "dist/main.d.ts",
   "scripts": {
-    "build": "tsdown src/main.ts src/local-bridge.ts --format esm --no-dts && tsc --emitDeclarationOnly --declarationMap false",
+    "build": "tsdown src/main.ts --format esm --no-dts && tsc --emitDeclarationOnly --declarationMap false",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

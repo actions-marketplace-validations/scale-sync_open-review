@@ -2,10 +2,11 @@ import {
   CommentPoster,
   GitHubClient,
   SnapshotBuilder,
+  buildFastReviewSummary,
   loadConfig,
   loadRepoConfigFromGitHub,
   parseDiff,
-  runFastReview,
+  runGoReview,
   runRLM,
   validateConfig,
 } from '@openreview/core';
@@ -54,10 +55,8 @@ export function registerReviewCommand(program: Command): void {
             ].join('\n')
           : '';
 
-        const { instructions: repoInstructions, reviewBuddyConfig } = await loadRepoConfigFromGitHub(
-          client,
-          prMeta.head.sha,
-        );
+        const { instructions: repoInstructions, reviewBuddyConfig } =
+          await loadRepoConfigFromGitHub(client, prMeta.head.sha);
 
         const prContext: PRContext = {
           owner: client.owner,
@@ -78,6 +77,7 @@ export function registerReviewCommand(program: Command): void {
 
         let findings: ReviewFinding[];
         let summary: ReviewSummary;
+        let noReview = false;
 
         if (opts.mode === 'rlm') {
           if (!opts.quiet) {
@@ -115,9 +115,11 @@ export function registerReviewCommand(program: Command): void {
             process.stderr.write('Running fast review...\n');
           }
 
-          const result = await runFastReview(prContext);
+          const result = await runGoReview(prContext, files);
+          if (result.status === 'failed') throw new Error(result.error || 'Go review failed');
+          noReview = result.status === 'empty' || result.status === 'skipped';
           findings = result.findings;
-          summary = result.summary;
+          summary = result.summary ?? buildFastReviewSummary([], 0, 0);
         }
 
         if (reviewBuddyConfig.finishing_touches) {
@@ -138,7 +140,10 @@ export function registerReviewCommand(program: Command): void {
         process.stdout.write(output + '\n');
 
         // Post to GitHub if --submit flag is set
-        if (opts.submit) {
+        if (opts.submit && noReview) {
+          process.stderr.write('No reviewable files; nothing posted.\n');
+        }
+        if (opts.submit && !noReview) {
           if (!opts.quiet) {
             process.stderr.write('Posting review to GitHub...\n');
           }
