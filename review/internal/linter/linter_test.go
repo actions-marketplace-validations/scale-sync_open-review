@@ -13,6 +13,7 @@ import (
 )
 
 func TestLinterMergesChangedLineAndSkipsMissingTools(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "false")
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "main.ts"), []byte("bad\nokay\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -47,6 +48,7 @@ func TestGitleaksNeverReturnsSecretValue(t *testing.T) {
 }
 
 func TestGitleaksReadsRedactedReport(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "false")
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("token\n"), 0o600); err != nil {
 		t.Fatal(err)
@@ -106,6 +108,7 @@ func TestActionSkipsUntrustedCheckout(t *testing.T) {
 }
 
 func TestMissingLinterIsAudited(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "false")
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "main.py"), []byte("bad\n"), 0o600); err != nil {
 		t.Fatal(err)

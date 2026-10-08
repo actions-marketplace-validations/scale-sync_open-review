@@ -45,6 +45,7 @@ func TestGoReviewPreservesFullChanges(t *testing.T) {
 }
 
 func TestDeepReviewUsesSandboxAuditAndGoValidation(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "false")
 	bin := t.TempDir()
 	if err := os.WriteFile(filepath.Join(bin, "deno"), []byte("#!/bin/sh\nprintf '%s' 'verified condition'\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -83,6 +84,7 @@ func TestDeepReviewUsesSandboxAuditAndGoValidation(t *testing.T) {
 }
 
 func TestDeepReviewWithoutDenoRecordsUnverifiedPass(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "false")
 	t.Setenv("PATH", t.TempDir())
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`))
