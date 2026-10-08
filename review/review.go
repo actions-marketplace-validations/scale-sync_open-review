@@ -2,13 +2,16 @@ package review
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/scale-sync/open-review/review/internal/agent"
 	"github.com/scale-sync/open-review/review/internal/config"
+	"github.com/scale-sync/open-review/review/internal/deep"
 	"github.com/scale-sync/open-review/review/internal/diff"
 	"github.com/scale-sync/open-review/review/internal/gitcmd"
+	"github.com/scale-sync/open-review/review/internal/linter"
 	"github.com/scale-sync/open-review/review/internal/llm"
 	"github.com/scale-sync/open-review/review/internal/model"
 )
@@ -54,11 +57,47 @@ func Prepare(ctx context.Context, opts Options) (Request, error) {
 		return Request{}, err
 	}
 	req.Instructions = config.Instructions(req.RepoRoot, req.Files)
+	req.WorktreeRoot = req.RepoRoot
 	return req, nil
 }
 
 func Run(ctx context.Context, req Request) (Result, error) {
-	return agent.Run(ctx, req, llm.Review)
+	var result Result
+	var err error
+	if req.ReviewKind == "deep" {
+		result, err = deep.Run(ctx, req)
+	} else if req.ReviewKind != "" && req.ReviewKind != "fast" {
+		return Result{}, fmt.Errorf("unsupported review kind %q", req.ReviewKind)
+	} else {
+		result, err = agent.Run(ctx, req, llm.Review)
+	}
+	if err != nil || result.Status != "complete" {
+		return result, err
+	}
+	findings, audit := linter.Run(ctx, req, result.Findings)
+	result.Findings = findings
+	result.Audit = append(result.Audit, audit...)
+	if len(findings) > 0 {
+		var summary map[string]any
+		if json.Unmarshal(result.Summary, &summary) == nil {
+			counts := map[string]int{"severe": 0, "non-severe": 0, "investigate": 0, "informational": 0}
+			for _, raw := range findings {
+				var finding model.Finding
+				if json.Unmarshal(raw, &finding) == nil {
+					counts[finding.Severity]++
+				}
+			}
+			summary["totalFindings"] = len(findings)
+			summary["findingsBySeverity"] = counts
+			result.Summary, _ = json.Marshal(summary)
+		}
+		var trace map[string]any
+		if json.Unmarshal(result.Trace, &trace) == nil {
+			trace["finalFindingsCount"] = len(findings)
+			result.Trace, _ = json.Marshal(trace)
+		}
+	}
+	return result, nil
 }
 
 func PrepareExternal(req Request, maxFiles int) (Request, error) {

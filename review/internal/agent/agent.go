@@ -55,7 +55,7 @@ func Run(ctx context.Context, req model.Request, reviewer Reviewer) (model.Resul
 				return failed(result, errors.New("reviewer cited too many lines"))
 			}
 			for line := finding.StartLine; line <= finding.EndLine; line++ {
-				if !changedLine(req.Changes, finding.File, line) {
+				if !ChangedLine(req.Changes, finding.File, line) {
 					return failed(result, fmt.Errorf("reviewer cited a line outside the diff"))
 				}
 			}
@@ -84,7 +84,7 @@ func validSeverity(severity string) bool {
 	return false
 }
 
-func changedLine(changes []diff.Change, file string, start int) bool {
+func ChangedLine(changes []diff.Change, file string, start int) bool {
 	for _, change := range changes {
 		if change.Path != file {
 			continue

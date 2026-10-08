@@ -21,7 +21,12 @@ function makeMockClient() {
   return { client, api };
 }
 
-function makeFinding(id: string, file = 'src/index.ts', line = 10, title = `Finding ${id}`): ReviewFinding {
+function makeFinding(
+  id: string,
+  file = 'src/index.ts',
+  line = 10,
+  title = `Finding ${id}`,
+): ReviewFinding {
   return {
     id,
     category: 'bug',
@@ -41,7 +46,12 @@ function makeSummary(totalFindings = 1): ReviewSummary {
     filesReviewed: 5,
     duration: '10s',
     mode: 'fast',
-    findingsBySeverity: { severe: totalFindings, 'non-severe': 0, investigate: 0, informational: 0 },
+    findingsBySeverity: {
+      severe: totalFindings,
+      'non-severe': 0,
+      investigate: 0,
+      informational: 0,
+    },
     totalFindings,
   };
 }
@@ -104,12 +114,7 @@ describe('postReviewResults', () => {
     api.post.mockResolvedValue({ data: {} });
     api.patch.mockResolvedValue({ data: {} });
 
-    const summary = await poster.postReviewResults(
-      7,
-      makePr(),
-      [newFinding],
-      makeSummary(1),
-    );
+    const summary = await poster.postReviewResults(7, makePr(), [newFinding], makeSummary(1));
 
     expect(api.post).toHaveBeenCalledOnce();
     const [reviewUrl, reviewBody] = api.post.mock.calls[0];
@@ -136,6 +141,34 @@ describe('postReviewResults', () => {
     expect(summary.newCount).toBe(0);
     expect(summary.resolvedCount).toBe(0);
     expect(api.patch).toHaveBeenCalledOnce();
+  });
+
+  it('does not duplicate inline comments when a summary post fails and the event retries', async () => {
+    const finding = makeFinding('retry');
+    let inlineBody = '';
+    let failSummary = true;
+    api.get.mockImplementation(async (url: string) => ({
+      data: url.includes('/pulls/7/comments') ? (inlineBody ? [{ body: inlineBody }] : []) : [],
+    }));
+    api.post.mockImplementation(
+      async (url: string, payload: { body?: string; comments?: Array<{ body: string }> }) => {
+        if (url.includes('/pulls/7/reviews')) inlineBody = payload.comments?.[0].body ?? '';
+        if (url.includes('/issues/7/comments') && failSummary)
+          throw new Error('summary write failed');
+        return { data: {} };
+      },
+    );
+
+    await expect(poster.postReviewResults(7, makePr(), [finding], makeSummary())).rejects.toThrow(
+      'summary write failed',
+    );
+    failSummary = false;
+    await poster.postReviewResults(7, makePr(), [finding], makeSummary());
+
+    expect(
+      api.post.mock.calls.filter(([url]) => String(url).includes('/pulls/7/reviews')),
+    ).toHaveLength(1);
+    expect(inlineBody).toContain('<!-- openreview-finding:');
   });
 });
 
@@ -173,29 +206,25 @@ describe('postSummaryComment', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
-  it('deletes the stale summary and posts a new one when newer timeline comments exist', async () => {
+  it('updates the existing summary without deleting it when newer comments exist', async () => {
     const { client, api } = makeMockClient();
     const poster = new CommentPoster(client);
-    api.get
-      .mockResolvedValueOnce({
-        data: [{ id: 400, body: 'Review started...' }],
-      })
-      .mockResolvedValueOnce({
-        data: [
-          { id: 300, body: '<!-- openreview-summary -->\nolder summary' },
-        ],
-      });
+    api.get.mockResolvedValue({
+      data: [
+        { id: 400, body: 'A newer conversation' },
+        { id: 300, body: '<!-- openreview-summary -->\nolder summary' },
+      ],
+    });
     api.post.mockResolvedValue({ data: {} });
     api.delete.mockResolvedValue({ data: {} });
 
     await poster.postSummaryComment(7, makeSummary(2));
 
-    // Without this, every subsequent push appends a new summary instead of
-    // replacing the old one — the exact "replace-not-duplicate" regression.
-    expect(api.delete).toHaveBeenCalledWith(
+    expect(api.delete).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.patch).toHaveBeenCalledWith(
       '/repos/test-owner/test-repo/issues/comments/300',
+      expect.objectContaining({ body: expect.stringContaining('<!-- openreview-summary -->') }),
     );
-    expect(api.post).toHaveBeenCalledOnce();
-    expect(api.patch).not.toHaveBeenCalled();
   });
 });

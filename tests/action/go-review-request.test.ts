@@ -39,6 +39,8 @@ describe('Go review request', () => {
     expect(request.changes[1].patch).toContain('Binary files differ');
     expect(request.title).toBe('Fix bug');
     expect(request.instructions).toBe('Check errors');
+    expect(request.reviewKind).toBe('fast');
+    expect(toGoRequest(pr, files, 'deep').reviewKind).toBe('deep');
     expect(JSON.stringify(request)).not.toContain('api-key');
   });
 });

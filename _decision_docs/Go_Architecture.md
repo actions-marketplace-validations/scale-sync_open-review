@@ -39,7 +39,7 @@ Keep the canonical JSON shape in `review/schema/` and run Go/TypeScript compatib
 
 ## Design rules
 
-1. **One owner for review decisions.** v0.5.0–v0.6.0 bridge to the existing TypeScript reviewer. v0.7.0 moves product fast reviews to Go; the old TypeScript implementation remains for comparison until parity is demonstrated. v0.8.0 moves deep review after parity. Delete replaced paths only when all callers pass.
+1. **One owner for review decisions.** v0.5.0–v0.6.0 bridge to the existing TypeScript reviewer. v0.7.0 moves product fast reviews to Go. v0.8.0 moves product deep reviews and linter fusion to Go; the old TypeScript implementations remain for comparison until parity is demonstrated. Delete replaced paths only when all callers pass.
 2. **Small boundaries where outside systems enter.** Use narrow replaceable edges for Git execution, model calls, time, and saved sessions. Keep ordinary Go code concrete.
 3. **Never hide incomplete work.** Register every selected file before review. Each finishes as reviewed, partial, failed, or skipped with a reason.
 4. **Check untrusted input.** Validate paths, refs, model output, schema versions, and GitHub comment positions. Keep tokens out of requests, traces, and logs.
@@ -53,7 +53,7 @@ Keep the canonical JSON shape in `review/schema/` and run Go/TypeScript compatib
 | `cli/src/commands/review.ts`                | `cmd/open-review/` and `review/internal/gitcmd/` | workspace/range/commit Git fixtures                  |
 | `core/src/review/fast-review.ts`            | `review/internal/agent/` and `llm/`              | findings, coverage, malformed response, budget cases |
 | `core/src/review/rlm-runner.ts`, `sandbox/` | `review/internal/sandbox/`                       | escape, timeout, output parity                       |
-| `core/src/review/linters.ts`                | `review/internal/linters/`                       | missing binary, timeout, deduplication               |
+| `core/src/review/linters.ts`                | `review/internal/linter/`                        | missing binary, timeout, deduplication               |
 | `core/src/config/*`                         | `review/internal/config/`                        | setting and rule precedence                          |
 | `core/src/learnings/*`, `trace/*`           | `review/internal/session/` and `feedback/`       | persistence, redaction, deletion                     |
 | `core/src/chat/*`, `action/src/*`           | `actions/github/`; answer ownership still open   | webhook, thread, posting smoke cases                 |

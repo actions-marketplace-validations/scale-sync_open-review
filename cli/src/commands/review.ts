@@ -1,13 +1,10 @@
 import {
   CommentPoster,
   GitHubClient,
-  SnapshotBuilder,
   buildFastReviewSummary,
   loadConfig,
   loadRepoConfigFromGitHub,
-  parseDiff,
   runGoReview,
-  runRLM,
   validateConfig,
 } from '@openreview/core';
 import type { PRContext, ReviewFinding, ReviewSummary } from '@openreview/core';
@@ -84,38 +81,26 @@ export function registerReviewCommand(program: Command): void {
             process.stderr.write('Running RLM deep review...\n');
           }
 
-          const parsedDiffs = parseDiff(diff);
-          const snapshot = new SnapshotBuilder({
-            client,
-            headRef: prMeta.head.sha,
-            diffs: parsedDiffs,
-          });
-
-          findings = await runRLM(prContext, snapshot, (event) => {
-            if (!opts.quiet) {
-              process.stderr.write(
-                `  [${event.type}] iter=${event.iteration}: ${event.message.slice(0, 80)}\n`,
-              );
+          const result = await runGoReview(prContext, files, 100, 'deep');
+          if (result.status === 'failed') throw new Error(result.error || 'Deep review failed');
+          noReview = result.status === 'empty' || result.status === 'skipped';
+          findings = result.findings;
+          summary = result.summary ?? buildFastReviewSummary([], 0, 0);
+          if (!opts.quiet) {
+            for (const event of result.audit ?? []) {
+              process.stderr.write(`  [${event.stage}] ${event.status}\n`);
             }
-          });
-
-          const bySeverity = { severe: 0, 'non-severe': 0, investigate: 0, informational: 0 };
-          for (const f of findings) {
-            bySeverity[f.severity]++;
           }
-          summary = {
-            filesReviewed: files.length,
-            duration: '—',
-            mode: 'rlm',
-            findingsBySeverity: bySeverity,
-            totalFindings: findings.length,
-          };
         } else {
           if (!opts.quiet) {
             process.stderr.write('Running fast review...\n');
           }
 
           const result = await runGoReview(prContext, files);
+          if (!opts.quiet) {
+            for (const event of result.audit ?? [])
+              process.stderr.write(`  [${event.stage}] ${event.status}\n`);
+          }
           if (result.status === 'failed') throw new Error(result.error || 'Go review failed');
           noReview = result.status === 'empty' || result.status === 'skipped';
           findings = result.findings;

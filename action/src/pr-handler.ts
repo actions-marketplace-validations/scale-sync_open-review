@@ -48,12 +48,6 @@ export async function handlePullRequest(context: Context): Promise<void> {
   const client = new GitHubClient({ token, owner, repo });
   const poster = new CommentPoster(client);
 
-  // Post acknowledgement
-  await poster.postAcknowledgement(
-    prNumber,
-    '[INFO] **open-review** — Review started... results will appear shortly.',
-  );
-
   try {
     const prMeta = await client.getPR(prNumber);
     const files = await client.getPRFiles(prNumber);
@@ -90,6 +84,11 @@ export async function handlePullRequest(context: Context): Promise<void> {
     for (const entry of result.coverage) {
       core.info(
         `Review coverage: ${entry.state} ${entry.path}${entry.reason ? ` (${entry.reason})` : ''}`,
+      );
+    }
+    for (const event of result.audit ?? []) {
+      core.info(
+        `Review audit: ${event.stage} ${event.status}${event.message ? ` (${event.message})` : ''}`,
       );
     }
     if (result.status === 'failed') throw new Error(result.error || 'Go review failed');

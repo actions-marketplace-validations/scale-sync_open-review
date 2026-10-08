@@ -15,7 +15,7 @@ export function registerServeCommand(program: Command): void {
         app.use(express.json());
 
         app.get('/health', (_req, res) => {
-          res.json({ status: 'ok', version: '0.7.0' });
+          res.json({ status: 'ok', version: '0.8.0' });
         });
 
         const port = parseInt(opts.port, 10);

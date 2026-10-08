@@ -3,9 +3,9 @@
 [![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Open-source, agentic code review tool. v0.7.0 runs fast reviews in Go for local Git changes and GitHub pull requests, with visible file coverage. TypeScript 7 handles GitHub events, comments, deep review, and conversation.
+Open-source, agentic code review tool. v0.8.0 runs fast and deep reviews in Go for local Git changes and GitHub pull requests, with visible file coverage and audit events. TypeScript 7 handles GitHub events, review state, and conversation.
 
-## v0.7.0 from source
+## v0.8.0 from source
 
 Requires Go 1.23+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
 
@@ -16,17 +16,19 @@ pnpm install --frozen-lockfile
 pnpm build
 go run ./cmd/open-review review --workspace
 go run ./cmd/open-review review --workspace --preview
+go run ./cmd/open-review review --workspace --deep
 go run ./cmd/open-review review --workspace --include '**/*.go' --exclude 'vendor/**'
 go run ./cmd/open-review review --base main --head feature-branch
 go run ./cmd/open-review review --commit HEAD --output json
 ```
 
-Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v0.7.0 release notes](_plan_docs/releases/v0.7.0.md).
+Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v0.8.0 release notes](_plan_docs/releases/v0.8.0.md).
 
 ## Current capabilities
 
 - **Go fast review** — local changes and pull requests use one file-selection and model-review path.
-- **Deep/RLM review** — the existing TypeScript deep-review command remains available while its Go migration is planned.
+- **Go deep review** — up to four investigation and sandbox cycles, followed by validated findings; without Deno, it records an unverified reasoning pass.
+- **Linter fusion** — available ESLint, Ruff, Semgrep, ShellCheck, and Gitleaks binaries add changed-line findings to the same Go result.
 - **Model choice** — OpenAI, Anthropic, Gemini, and OpenAI-compatible chat endpoints.
 - **GitHub posting** — findings use PR review comments, while the summary preserves prior review state.
 - **Codebase-aware chat** — ask questions about bounded PR context via `@open-review`, or use `ask --repo PATH` locally.
@@ -36,7 +38,7 @@ Use `--repo PATH` to inspect another checkout. See [local review details](review
 
 ### GitHub Action
 
-The GitHub Action ships with a bundled TypeScript adapter and a Linux x64 Go executable. It runs from `action/` without installing dependencies during the event. A live PR posting smoke test still needs model credentials.
+The GitHub Action ships with a bundled TypeScript adapter and a Linux x64 Go executable. It runs from `action/` without installing dependencies during the event. A live PR posting smoke test still needs model credentials. Linter execution is off in Actions unless `OPEN_REVIEW_TRUSTED_LINTERS=true` is set for a trusted checkout.
 
 ```yaml
 on: [pull_request]
@@ -48,7 +50,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: scale-sync/open-review/action@v0.7.0
+      - uses: scale-sync/open-review/action@v0.8.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -126,7 +128,7 @@ node cli/dist/main.mjs traces --pr <PR-URL>      # Traces for a specific PR
 node cli/dist/main.mjs traces --open <file>      # Pretty-print a trace file
 ```
 
-Every review (Fast or RLM) generates a JSON trace at `~/.openreview/traces/` with full audit trail: prompts, responses, findings, duration, and iteration details.
+The Go result includes coverage, a model trace, and bounded audit events. The older TypeScript trace reader remains available for legacy traces.
 
 ### `serve` — API Server
 
@@ -154,8 +156,8 @@ Key settings:
 | `MAIN_MODEL`          | `gpt-4o`      | Primary model for review and chat                        |
 | `SUB_MODEL`           | `gpt-4o-mini` | Secondary model for suggestions                          |
 | `MAX_FILES`           | `100`         | Max files per review                                     |
-| `MAX_ITERATIONS`      | `12`          | Max RLM loop iterations                                  |
-| `MAX_LLM_CALLS`       | `35`          | Max LLM calls per RLM session                            |
+| `MAX_ITERATIONS`      | `12`          | Legacy TypeScript RLM loop limit                         |
+| `MAX_LLM_CALLS`       | `35`          | Legacy TypeScript RLM call limit                         |
 | `DEFAULT_REVIEW_MODE` | `fast`        | Default mode: `fast` or `rlm`                            |
 | `INCLUDE_GLOBS`       | —             | File patterns to include (e.g. `src/**/*.ts`)            |
 | `EXCLUDE_GLOBS`       | —             | File patterns to exclude (e.g. `dist/**`)                |
@@ -183,13 +185,7 @@ See [`.reviewbuddy.yaml.example`](.reviewbuddy.yaml.example). All fields are opt
 
 ### Fast Mode
 
-Single-shot structured LLM call over the diff. Large diffs are automatically chunked by file (~40K chars per chunk) and reviewed in parallel. Non-reviewable files (lock files, generated code, images) are skipped automatically. Runs bundled linters in parallel.
-
-**Smart prompting:**
-
-- Small PRs (≤ 5 files, ≤ 3000 chars) use a compact, focused prompt for high accuracy
-- Large PRs use a comprehensive prompt with full category checklist
-- File-type detection adapts the reviewer persona (code reviewer / K8s auditor / docs reviewer / config specialist)
+Structured model calls over selected diffs. Large diffs are split into bounded chunks, with a 20-call limit. Non-reviewable files are skipped with coverage reasons. When a matching local checkout and linter binary are available, Go adds changed-line diagnostics and merges overlaps with model findings.
 
 Findings are categorized:
 
@@ -202,15 +198,15 @@ Findings are categorized:
 
 ### Deep / RLM Mode
 
-Agentic review using LangGraph.js. The LLM reasons about the code, writes verification scripts, executes them in a Deno sandbox, observes results, and repeats — up to `MAX_ITERATIONS`. Every finding includes grounded citations.
+Go coordinates up to four reasoning and verification cycles. Deno runs short generated scripts with a private temporary file, a 15-second timeout, limited output, and no access to model keys or network. Go checks final citations against changed lines.
 
-When Deno is not installed, RLM automatically operates in reasoning-only mode — still effective, just without sandbox execution.
+When Deno is unavailable, deep review continues with an explicit `unavailable` audit event; it does not claim executable verification. Install Deno before invoking `@open-review rlm` if sandbox verification is required.
 
-Triggered via `@open-review rlm` or `--mode rlm`.
+Triggered via `@open-review rlm`, `--mode rlm`, or the Go CLI's `--deep` flag.
 
 ## Instruction Files
 
-OpenReview automatically reads these files from your repository to customize reviews:
+open-review automatically reads these files from your repository to customize reviews:
 
 1. `REVIEW.md` — project-specific review rules (any directory level)
 2. `AGENTS.md`
@@ -222,18 +218,18 @@ Files at subdirectory level are scoped to code in that subtree. Total instructio
 
 ## Tech Stack
 
-| Layer             | Technology                    |
-| ----------------- | ----------------------------- |
-| Core language     | TypeScript / Node.js (≥ 20)   |
-| LLM orchestration | LangGraph.js                  |
-| LLM providers     | OpenAI, Anthropic, Google     |
-| Package manager   | pnpm                          |
-| Build tool        | tsdown                        |
-| Testing           | Vitest                        |
-| Linting           | ESLint 10 + Prettier          |
-| Sandbox           | Deno (MVP) → Docker (Phase 2) |
-| CLI               | commander                     |
-| API server        | Express.js                    |
+| Layer           | Technology                    |
+| --------------- | ----------------------------- |
+| Review engine   | Go 1.23+                      |
+| GitHub and chat | TypeScript 7 / Node.js        |
+| LLM providers   | OpenAI, Anthropic, Google     |
+| Package manager | pnpm                          |
+| Build tool      | tsdown                        |
+| Testing         | Vitest                        |
+| Linting         | ESLint 10 + Prettier          |
+| Sandbox         | Deno (MVP) → Docker (Phase 2) |
+| CLI             | commander                     |
+| API server      | Express.js                    |
 
 ## Development
 

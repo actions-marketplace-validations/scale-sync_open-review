@@ -14,10 +14,11 @@ export interface GoReviewResult {
   summary?: ReviewSummary;
   trace?: ReviewTrace;
   coverage: Array<{ path: string; state: string; reason?: string }>;
+  audit?: Array<{ stage: string; status: string; message?: string }>;
   error?: string;
 }
 
-export function toGoRequest(pr: PRContext, files: PRFile[]) {
+export function toGoRequest(pr: PRContext, files: PRFile[], reviewKind: 'fast' | 'deep' = 'fast') {
   return {
     contractVersion: 2,
     mode: 'branch',
@@ -26,6 +27,8 @@ export function toGoRequest(pr: PRContext, files: PRFile[]) {
     headSha: pr.metadata.headSha,
     title: pr.metadata.title,
     instructions: pr.instructions,
+    reviewKind,
+    worktreeRoot: process.env.GITHUB_WORKSPACE || process.cwd(),
     diff: '',
     files: [],
     changes: files.map((file) => ({
@@ -61,6 +64,7 @@ export async function runGoReview(
   pr: PRContext,
   files: PRFile[],
   maxFiles = 100,
+  reviewKind: 'fast' | 'deep' = 'fast',
 ): Promise<GoReviewResult> {
   if (!Number.isSafeInteger(maxFiles) || maxFiles < 1) {
     throw new Error('max-files must be a positive integer');
@@ -79,7 +83,7 @@ export async function runGoReview(
     ? ['review-json', '--max-files', String(maxFiles)]
     : ['run', './cmd/open-review', 'review-json', '--max-files', String(maxFiles)];
   const cwd = binary ? process.cwd() : root;
-  const request = JSON.stringify(toGoRequest(pr, files));
+  const request = JSON.stringify(toGoRequest(pr, files, reviewKind));
   if (Buffer.byteLength(request) > 10_000_000) throw new Error('Review request exceeds 10 MB');
 
   return new Promise((resolve, reject) => {

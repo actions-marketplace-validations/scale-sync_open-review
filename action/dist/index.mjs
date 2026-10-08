@@ -13,7 +13,7 @@ import { EventEmitter } from "events";
 import util, { deprecate, inspect } from "util";
 import { Readable } from "node:stream";
 import { promisify } from "node:util";
-import crypto$1, { randomUUID as randomUUID$1 } from "node:crypto";
+import crypto$1, { createHash, randomUUID as randomUUID$1 } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { AsyncLocalStorage } from "node:async_hooks";
 import "child_process";
@@ -22,9 +22,9 @@ import stream, { Readable as Readable$1 } from "stream";
 import http2 from "http2";
 import url from "url";
 import zlib from "zlib";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { basename as basename$1, dirname, join, resolve as resolve$1 } from "node:path";
-import { ReadStream, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { ReadStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { ReadableStream as ReadableStream$1 } from "node:stream/web";
 import { execFile, spawn } from "node:child_process";
 //#region \0rolldown/runtime.js
@@ -44684,7 +44684,7 @@ function isArrayBufferView(val) {
 *
 * @returns {boolean} True if value is a String, otherwise false
 */
-const isString$1 = typeOfTest("string");
+const isString = typeOfTest("string");
 /**
 * Determine if a value is a Function
 *
@@ -45291,7 +45291,7 @@ var utils_default = {
 	isBuffer,
 	isFormData: isFormData$1,
 	isArrayBufferView,
-	isString: isString$1,
+	isString,
 	isNumber,
 	isBoolean,
 	isObject,
@@ -83023,13 +83023,13 @@ function _lastNode(graph, exclude = []) {
 	for (const node of Object.values(graph.nodes)) if (!exclude.includes(node.id) && !sources.has(node.id)) found.push(node);
 	return found.length === 1 ? found[0] : void 0;
 }
-var Graph$1;
+var Graph;
 var init_graph = __esmMin((() => {
 	init_esm_node();
 	init_utils();
 	init_graph_mermaid();
 	init_json_schema();
-	Graph$1 = class Graph$1 {
+	Graph = class Graph {
 		constructor(params) {
 			Object.defineProperty(this, "nodes", {
 				enumerable: true,
@@ -83158,7 +83158,7 @@ var init_graph = __esmMin((() => {
 				if (validate$2(nodeId) && nodeLabelCounts.get(label) === 1) return label;
 				else return nodeId;
 			};
-			return new Graph$1({
+			return new Graph({
 				nodes: Object.fromEntries(Object.entries(this.nodes).map(([id, node]) => [getNodeId(id), {
 					...node,
 					id: getNodeId(id)
@@ -83563,7 +83563,7 @@ var init_base$1 = __esmMin((() => {
 			await runManager?.handleChainEnd(finalOutput ?? {}, void 0, void 0, void 0, { inputs: _coerceToDict$1(finalInput, "input") });
 		}
 		getGraph(_) {
-			const graph = new Graph$1();
+			const graph = new Graph();
 			const inputNode = graph.addNode({
 				name: `${this.getName()}Input`,
 				schema: anyType()
@@ -84314,7 +84314,7 @@ var init_base$1 = __esmMin((() => {
 			await runManager?.handleChainEnd(_coerceToDict$1(finalOutput, "output"));
 		}
 		getGraph(config) {
-			const graph = new Graph$1();
+			const graph = new Graph();
 			let currentLastNode = null;
 			this.steps.forEach((step, index) => {
 				const stepGraph = step.getGraph(config);
@@ -144035,15 +144035,6 @@ var InvalidUpdateError = class extends BaseLangGraphError {
 		return "InvalidUpdateError";
 	}
 };
-var UnreachableNodeError = class extends BaseLangGraphError {
-	constructor(message, fields) {
-		super(message, fields);
-		this.name = "UnreachableNodeError";
-	}
-	static get unminifiable_name() {
-		return "UnreachableNodeError";
-	}
-};
 //#endregion
 //#region ../node_modules/.pnpm/@langchain+langgraph-checkpoint@0.0.18_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3__/node_modules/@langchain/langgraph-checkpoint/dist/id.js
 init_esm_node();
@@ -146050,7 +146041,6 @@ const RETURN = "__return__";
 const PREVIOUS = "__previous__";
 const RUNTIME_PLACEHOLDER = "__pregel_runtime_placeholder__";
 const TAG_HIDDEN = "langsmith:hidden";
-const SELF = "__self__";
 const TASKS = "__pregel_tasks";
 const PUSH = "__pregel_push";
 const PULL = "__pregel_pull";
@@ -146831,45 +146821,6 @@ function _isChannelWriteTupleEntry(x) {
 }
 //#endregion
 //#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/read.js
-var ChannelRead = class ChannelRead extends RunnableCallable {
-	constructor(channel, mapper, fresh = false) {
-		super({ func: (_, config) => ChannelRead.doRead(config, this.channel, this.fresh, this.mapper) });
-		Object.defineProperty(this, "lc_graph_name", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: "ChannelRead"
-		});
-		Object.defineProperty(this, "channel", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		Object.defineProperty(this, "fresh", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: false
-		});
-		Object.defineProperty(this, "mapper", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		this.fresh = fresh;
-		this.mapper = mapper;
-		this.channel = channel;
-		this.name = Array.isArray(channel) ? `ChannelRead<${channel.join(",")}>` : `ChannelRead<${channel}>`;
-	}
-	static doRead(config, channel, fresh, mapper) {
-		const read = config.configurable?.[CONFIG_KEY_READ];
-		if (!read) throw new Error("Runnable is not configured with a read function. Make sure to call in the context of a Pregel process");
-		if (mapper) return mapper(read(channel, fresh));
-		else return read(channel, fresh);
-	}
-};
 const defaultRunnableBound = /* @__PURE__ */ new RunnablePassthrough();
 var PregelNode = class PregelNode extends RunnableBinding {
 	constructor(fields) {
@@ -149122,80 +149073,6 @@ async function call(runner, task, func, name, input, options = {}) {
 }
 //#endregion
 //#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/index.js
-function isString(value) {
-	return typeof value === "string";
-}
-/**
-* Utility class for working with channels in the Pregel system.
-* Provides static methods for subscribing to channels and writing to them.
-*
-* Channels are the communication pathways between nodes in a Pregel graph.
-* They enable message passing and state updates between different parts of the graph.
-*/
-var Channel = class {
-	static subscribeTo(channels, options) {
-		const { key, tags } = {
-			key: void 0,
-			tags: void 0,
-			...options ?? {}
-		};
-		if (Array.isArray(channels) && key !== void 0) throw new Error("Can't specify a key when subscribing to multiple channels");
-		let channelMappingOrArray;
-		if (isString(channels)) if (key) channelMappingOrArray = { [key]: channels };
-		else channelMappingOrArray = [channels];
-		else channelMappingOrArray = Object.fromEntries(channels.map((chan) => [chan, chan]));
-		return new PregelNode({
-			channels: channelMappingOrArray,
-			triggers: Array.isArray(channels) ? channels : [channels],
-			tags
-		});
-	}
-	/**
-	* Creates a ChannelWrite that specifies how to write values to channels.
-	* This is used to define how nodes send output to channels.
-	*
-	* @example
-	* ```typescript
-	* // Write to multiple channels
-	* const write = Channel.writeTo(["output", "state"]);
-	*
-	* // Write with specific values
-	* const write = Channel.writeTo(["output"], {
-	*   state: "completed",
-	*   result: calculateResult()
-	* });
-	*
-	* // Write with a transformation function
-	* const write = Channel.writeTo(["output"], {
-	*   result: (x) => processResult(x)
-	* });
-	* ```
-	*
-	* @param channels - Array of channel names to write to
-	* @param writes - Optional map of channel names to values or transformations
-	* @returns A ChannelWrite object that can be used to write to the specified channels
-	*/
-	static writeTo(channels, writes) {
-		const channelWriteEntries = [];
-		for (const channel of channels) channelWriteEntries.push({
-			channel,
-			value: PASSTHROUGH,
-			skipNone: false
-		});
-		for (const [key, value] of Object.entries(writes ?? {})) if (Runnable.isRunnable(value) || typeof value === "function") channelWriteEntries.push({
-			channel: key,
-			value: PASSTHROUGH,
-			skipNone: true,
-			mapper: _coerceToRunnable(value)
-		});
-		else channelWriteEntries.push({
-			channel: key,
-			value,
-			skipNone: false
-		});
-		return new ChannelWrite(channelWriteEntries);
-	}
-};
 /**
 * The Pregel class is the core runtime engine of LangGraph, implementing a message-passing graph computation model
 * inspired by [Google's Pregel system](https://research.google/pubs/pregel-a-system-for-large-scale-graph-processing/).
@@ -150311,512 +150188,6 @@ var EphemeralValue = class EphemeralValue extends BaseChannel {
 	}
 };
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/graph/graph.js
-init_esm_node();
-var Branch = class {
-	constructor(options) {
-		Object.defineProperty(this, "path", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		Object.defineProperty(this, "ends", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		if (Runnable.isRunnable(options.path)) this.path = options.path;
-		else this.path = _coerceToRunnable(options.path).withConfig({ runName: `Branch` });
-		this.ends = Array.isArray(options.pathMap) ? options.pathMap.reduce((acc, n) => {
-			acc[n] = n;
-			return acc;
-		}, {}) : options.pathMap;
-	}
-	run(writer, reader) {
-		return ChannelWrite.registerWriter(new RunnableCallable({
-			name: "<branch_run>",
-			trace: false,
-			func: async (input, config) => {
-				try {
-					return await this._route(input, config, writer, reader);
-				} catch (e) {
-					if (e.name === NodeInterrupt.unminifiable_name) console.warn("[WARN]: 'NodeInterrupt' thrown in conditional edge. This is likely a bug in your graph implementation.\nNodeInterrupt should only be thrown inside a node, not in edge conditions.");
-					throw e;
-				}
-			}
-		}));
-	}
-	async _route(input, config, writer, reader) {
-		let result = await this.path.invoke(reader ? reader(config) : input, config);
-		if (!Array.isArray(result)) result = [result];
-		let destinations;
-		if (this.ends) destinations = result.map((r) => _isSend(r) ? r : this.ends[r]);
-		else destinations = result;
-		if (destinations.some((dest) => !dest)) throw new Error("Branch condition returned unknown or null destination");
-		if (destinations.filter(_isSend).some((packet) => packet.node === "__end__")) throw new InvalidUpdateError("Cannot send a packet to the END node");
-		return await writer(destinations, config) ?? input;
-	}
-};
-var Graph = class {
-	constructor() {
-		Object.defineProperty(this, "nodes", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		Object.defineProperty(this, "edges", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		Object.defineProperty(this, "branches", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		Object.defineProperty(this, "entryPoint", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		Object.defineProperty(this, "compiled", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: false
-		});
-		this.nodes = {};
-		this.edges = /* @__PURE__ */ new Set();
-		this.branches = {};
-	}
-	warnIfCompiled(message) {
-		if (this.compiled) console.warn(message);
-	}
-	get allEdges() {
-		return this.edges;
-	}
-	addNode(...args) {
-		function isMutlipleNodes(args) {
-			return args.length >= 1 && typeof args[0] !== "string";
-		}
-		const nodes = isMutlipleNodes(args) ? Array.isArray(args[0]) ? args[0] : Object.entries(args[0]) : [[
-			args[0],
-			args[1],
-			args[2]
-		]];
-		if (nodes.length === 0) throw new Error("No nodes provided in `addNode`");
-		for (const [key, action, options] of nodes) {
-			for (const reservedChar of ["|", ":"]) if (key.includes(reservedChar)) throw new Error(`"${reservedChar}" is a reserved character and is not allowed in node names.`);
-			this.warnIfCompiled(`Adding a node to a graph that has already been compiled. This will not be reflected in the compiled graph.`);
-			if (key in this.nodes) throw new Error(`Node \`${key}\` already present.`);
-			if (key === "__end__") throw new Error(`Node \`${key}\` is reserved.`);
-			const runnable = _coerceToRunnable(action);
-			this.nodes[key] = {
-				runnable,
-				metadata: options?.metadata,
-				subgraphs: isPregelLike(runnable) ? [runnable] : options?.subgraphs,
-				ends: options?.ends
-			};
-		}
-		return this;
-	}
-	addEdge(startKey, endKey) {
-		this.warnIfCompiled(`Adding an edge to a graph that has already been compiled. This will not be reflected in the compiled graph.`);
-		if (startKey === "__end__") throw new Error("END cannot be a start node");
-		if (endKey === "__start__") throw new Error("START cannot be an end node");
-		if (Array.from(this.edges).some(([start]) => start === startKey) && !("channels" in this)) throw new Error(`Already found path for ${startKey}. For multiple edges, use StateGraph.`);
-		this.edges.add([startKey, endKey]);
-		return this;
-	}
-	addConditionalEdges(source, path, pathMap) {
-		const options = typeof source === "object" ? source : {
-			source,
-			path,
-			pathMap
-		};
-		this.warnIfCompiled("Adding an edge to a graph that has already been compiled. This will not be reflected in the compiled graph.");
-		if (!Runnable.isRunnable(options.path)) {
-			const pathDisplayValues = Array.isArray(options.pathMap) ? options.pathMap.join(",") : Object.keys(options.pathMap ?? {}).join(",");
-			options.path = _coerceToRunnable(options.path).withConfig({ runName: `Branch<${options.source}${pathDisplayValues !== "" ? `,${pathDisplayValues}` : ""}>`.slice(0, 63) });
-		}
-		const name = options.path.getName() === "RunnableLambda" ? "condition" : options.path.getName();
-		if (this.branches[options.source] && this.branches[options.source][name]) throw new Error(`Condition \`${name}\` already present for node \`${source}\``);
-		this.branches[options.source] ??= {};
-		this.branches[options.source][name] = new Branch(options);
-		return this;
-	}
-	/**
-	* @deprecated use `addEdge(START, key)` instead
-	*/
-	setEntryPoint(key) {
-		this.warnIfCompiled("Setting the entry point of a graph that has already been compiled. This will not be reflected in the compiled graph.");
-		return this.addEdge(START, key);
-	}
-	/**
-	* @deprecated use `addEdge(key, END)` instead
-	*/
-	setFinishPoint(key) {
-		this.warnIfCompiled("Setting a finish point of a graph that has already been compiled. This will not be reflected in the compiled graph.");
-		return this.addEdge(key, END);
-	}
-	compile({ checkpointer, interruptBefore, interruptAfter, name } = {}) {
-		this.validate([...Array.isArray(interruptBefore) ? interruptBefore : [], ...Array.isArray(interruptAfter) ? interruptAfter : []]);
-		const compiled = new CompiledGraph({
-			builder: this,
-			checkpointer,
-			interruptAfter,
-			interruptBefore,
-			autoValidate: false,
-			nodes: {},
-			channels: {
-				[START]: new EphemeralValue(),
-				[END]: new EphemeralValue()
-			},
-			inputChannels: START,
-			outputChannels: END,
-			streamChannels: [],
-			streamMode: "values",
-			name
-		});
-		for (const [key, node] of Object.entries(this.nodes)) compiled.attachNode(key, node);
-		for (const [start, end] of this.edges) compiled.attachEdge(start, end);
-		for (const [start, branches] of Object.entries(this.branches)) for (const [name, branch] of Object.entries(branches)) compiled.attachBranch(start, name, branch);
-		return compiled.validate();
-	}
-	validate(interrupt) {
-		const allSources = new Set([...this.allEdges].map(([src, _]) => src));
-		for (const [start] of Object.entries(this.branches)) allSources.add(start);
-		for (const source of allSources) if (source !== "__start__" && !(source in this.nodes)) throw new Error(`Found edge starting at unknown node \`${source}\``);
-		const allTargets = new Set([...this.allEdges].map(([_, target]) => target));
-		for (const [start, branches] of Object.entries(this.branches)) for (const branch of Object.values(branches)) if (branch.ends != null) for (const end of Object.values(branch.ends)) allTargets.add(end);
-		else {
-			allTargets.add(END);
-			for (const node of Object.keys(this.nodes)) if (node !== start) allTargets.add(node);
-		}
-		for (const node of Object.values(this.nodes)) for (const target of node.ends ?? []) allTargets.add(target);
-		for (const node of Object.keys(this.nodes)) if (!allTargets.has(node)) throw new UnreachableNodeError([
-			`Node \`${node}\` is not reachable.`,
-			"",
-			"If you are returning Command objects from your node,",
-			"make sure you are passing names of potential destination nodes as an \"ends\" array",
-			"into \".addNode(..., { ends: [\"node1\", \"node2\"] })\"."
-		].join("\n"), { lc_error_code: "UNREACHABLE_NODE" });
-		for (const target of allTargets) if (target !== "__end__" && !(target in this.nodes)) throw new Error(`Found edge ending at unknown node \`${target}\``);
-		if (interrupt) {
-			for (const node of interrupt) if (!(node in this.nodes)) throw new Error(`Interrupt node \`${node}\` is not present`);
-		}
-		this.compiled = true;
-	}
-};
-var CompiledGraph = class extends Pregel {
-	constructor({ builder, ...rest }) {
-		super(rest);
-		Object.defineProperty(this, "builder", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		this.builder = builder;
-	}
-	attachNode(key, node) {
-		this.channels[key] = new EphemeralValue();
-		this.nodes[key] = new PregelNode({
-			channels: [],
-			triggers: [],
-			metadata: node.metadata,
-			subgraphs: node.subgraphs,
-			ends: node.ends
-		}).pipe(node.runnable).pipe(new ChannelWrite([{
-			channel: key,
-			value: PASSTHROUGH
-		}], [TAG_HIDDEN]));
-		this.streamChannels.push(key);
-	}
-	attachEdge(start, end) {
-		if (end === "__end__") {
-			if (start === "__start__") throw new Error("Cannot have an edge from START to END");
-			this.nodes[start].writers.push(new ChannelWrite([{
-				channel: END,
-				value: PASSTHROUGH
-			}], [TAG_HIDDEN]));
-		} else {
-			this.nodes[end].triggers.push(start);
-			this.nodes[end].channels.push(start);
-		}
-	}
-	attachBranch(start, name, branch) {
-		if (start === "__start__" && !this.nodes["__start__"]) this.nodes[START] = Channel.subscribeTo(START, { tags: [TAG_HIDDEN] });
-		this.nodes[start].pipe(branch.run((dests) => {
-			return new ChannelWrite(dests.map((dest) => {
-				if (_isSend(dest)) return dest;
-				return {
-					channel: dest === "__end__" ? END : `branch:${start}:${name}:${dest}`,
-					value: PASSTHROUGH
-				};
-			}), [TAG_HIDDEN]);
-		}));
-		const ends = branch.ends ? Object.values(branch.ends) : Object.keys(this.nodes);
-		for (const end of ends) if (end !== "__end__") {
-			const channelName = `branch:${start}:${name}:${end}`;
-			this.channels[channelName] = new EphemeralValue();
-			this.nodes[end].triggers.push(channelName);
-			this.nodes[end].channels.push(channelName);
-		}
-	}
-	/**
-	* Returns a drawable representation of the computation graph.
-	*/
-	async getGraphAsync(config) {
-		const xray = config?.xray;
-		const graph = new Graph$1();
-		const startNodes = { [START]: graph.addNode({ schema: anyType() }, START) };
-		const endNodes = {};
-		let subgraphs = {};
-		if (xray) subgraphs = Object.fromEntries((await gatherIterator(this.getSubgraphsAsync())).filter((x) => isCompiledGraph(x[1])));
-		function addEdge(start, end, label, conditional = false) {
-			if (end === "__end__" && endNodes["__end__"] === void 0) endNodes[END] = graph.addNode({ schema: anyType() }, END);
-			if (startNodes[start] === void 0) return;
-			if (endNodes[end] === void 0) throw new Error(`End node ${end} not found!`);
-			return graph.addEdge(startNodes[start], endNodes[end], label !== end ? label : void 0, conditional);
-		}
-		for (const [key, nodeSpec] of Object.entries(this.builder.nodes)) {
-			const displayKey = _escapeMermaidKeywords(key);
-			const node = nodeSpec.runnable;
-			const metadata = nodeSpec.metadata ?? {};
-			if (this.interruptBefore?.includes(key) && this.interruptAfter?.includes(key)) metadata.__interrupt = "before,after";
-			else if (this.interruptBefore?.includes(key)) metadata.__interrupt = "before";
-			else if (this.interruptAfter?.includes(key)) metadata.__interrupt = "after";
-			if (xray) {
-				const newXrayValue = typeof xray === "number" ? xray - 1 : xray;
-				const drawableSubgraph = subgraphs[key] !== void 0 ? await subgraphs[key].getGraphAsync({
-					...config,
-					xray: newXrayValue
-				}) : node.getGraph(config);
-				drawableSubgraph.trimFirstNode();
-				drawableSubgraph.trimLastNode();
-				if (Object.keys(drawableSubgraph.nodes).length > 1) {
-					const [e, s] = graph.extend(drawableSubgraph, displayKey);
-					if (e === void 0) throw new Error(`Could not extend subgraph "${key}" due to missing entrypoint.`);
-					function _isRunnableInterface(thing) {
-						return thing ? thing.lc_runnable : false;
-					}
-					function _nodeDataStr(id, data) {
-						if (id !== void 0 && !validate$2(id)) return id;
-						else if (_isRunnableInterface(data)) try {
-							let dataStr = data.getName();
-							dataStr = dataStr.startsWith("Runnable") ? dataStr.slice(8) : dataStr;
-							return dataStr;
-						} catch (error) {
-							return data.getName();
-						}
-						else return data.name ?? "UnknownSchema";
-					}
-					if (s !== void 0) startNodes[displayKey] = {
-						name: _nodeDataStr(s.id, s.data),
-						...s
-					};
-					endNodes[displayKey] = {
-						name: _nodeDataStr(e.id, e.data),
-						...e
-					};
-				} else {
-					const newNode = graph.addNode(node, displayKey, metadata);
-					startNodes[displayKey] = newNode;
-					endNodes[displayKey] = newNode;
-				}
-			} else {
-				const newNode = graph.addNode(node, displayKey, metadata);
-				startNodes[displayKey] = newNode;
-				endNodes[displayKey] = newNode;
-			}
-		}
-		const sortedEdges = [...this.builder.allEdges].sort(([a], [b]) => {
-			if (a < b) return -1;
-			else if (b > a) return 1;
-			else return 0;
-		});
-		for (const [start, end] of sortedEdges) addEdge(_escapeMermaidKeywords(start), _escapeMermaidKeywords(end));
-		for (const [start, branches] of Object.entries(this.builder.branches)) {
-			const defaultEnds = {
-				...Object.fromEntries(Object.keys(this.builder.nodes).filter((k) => k !== start).map((k) => [_escapeMermaidKeywords(k), _escapeMermaidKeywords(k)])),
-				[END]: END
-			};
-			for (const branch of Object.values(branches)) {
-				let ends;
-				if (branch.ends !== void 0) ends = branch.ends;
-				else ends = defaultEnds;
-				for (const [label, end] of Object.entries(ends)) addEdge(_escapeMermaidKeywords(start), _escapeMermaidKeywords(end), label, true);
-			}
-		}
-		for (const [key, node] of Object.entries(this.builder.nodes)) if (node.ends !== void 0) for (const end of node.ends) addEdge(_escapeMermaidKeywords(key), _escapeMermaidKeywords(end), void 0, true);
-		return graph;
-	}
-	/**
-	* Returns a drawable representation of the computation graph.
-	*
-	* @deprecated Use getGraphAsync instead. The async method will be the default in the next minor core release.
-	*/
-	getGraph(config) {
-		const xray = config?.xray;
-		const graph = new Graph$1();
-		const startNodes = { [START]: graph.addNode({ schema: anyType() }, START) };
-		const endNodes = {};
-		let subgraphs = {};
-		if (xray) subgraphs = Object.fromEntries(gatherIteratorSync(this.getSubgraphs()).filter((x) => isCompiledGraph(x[1])));
-		function addEdge(start, end, label, conditional = false) {
-			if (end === "__end__" && endNodes["__end__"] === void 0) endNodes[END] = graph.addNode({ schema: anyType() }, END);
-			return graph.addEdge(startNodes[start], endNodes[end], label !== end ? label : void 0, conditional);
-		}
-		for (const [key, nodeSpec] of Object.entries(this.builder.nodes)) {
-			const displayKey = _escapeMermaidKeywords(key);
-			const node = nodeSpec.runnable;
-			const metadata = nodeSpec.metadata ?? {};
-			if (this.interruptBefore?.includes(key) && this.interruptAfter?.includes(key)) metadata.__interrupt = "before,after";
-			else if (this.interruptBefore?.includes(key)) metadata.__interrupt = "before";
-			else if (this.interruptAfter?.includes(key)) metadata.__interrupt = "after";
-			if (xray) {
-				const newXrayValue = typeof xray === "number" ? xray - 1 : xray;
-				const drawableSubgraph = subgraphs[key] !== void 0 ? subgraphs[key].getGraph({
-					...config,
-					xray: newXrayValue
-				}) : node.getGraph(config);
-				drawableSubgraph.trimFirstNode();
-				drawableSubgraph.trimLastNode();
-				if (Object.keys(drawableSubgraph.nodes).length > 1) {
-					const [e, s] = graph.extend(drawableSubgraph, displayKey);
-					if (e === void 0) throw new Error(`Could not extend subgraph "${key}" due to missing entrypoint.`);
-					function _isRunnableInterface(thing) {
-						return thing ? thing.lc_runnable : false;
-					}
-					function _nodeDataStr(id, data) {
-						if (id !== void 0 && !validate$2(id)) return id;
-						else if (_isRunnableInterface(data)) try {
-							let dataStr = data.getName();
-							dataStr = dataStr.startsWith("Runnable") ? dataStr.slice(8) : dataStr;
-							return dataStr;
-						} catch (error) {
-							return data.getName();
-						}
-						else return data.name ?? "UnknownSchema";
-					}
-					if (s !== void 0) startNodes[displayKey] = {
-						name: _nodeDataStr(s.id, s.data),
-						...s
-					};
-					endNodes[displayKey] = {
-						name: _nodeDataStr(e.id, e.data),
-						...e
-					};
-				} else {
-					const newNode = graph.addNode(node, displayKey, metadata);
-					startNodes[displayKey] = newNode;
-					endNodes[displayKey] = newNode;
-				}
-			} else {
-				const newNode = graph.addNode(node, displayKey, metadata);
-				startNodes[displayKey] = newNode;
-				endNodes[displayKey] = newNode;
-			}
-		}
-		const sortedEdges = [...this.builder.allEdges].sort(([a], [b]) => {
-			if (a < b) return -1;
-			else if (b > a) return 1;
-			else return 0;
-		});
-		for (const [start, end] of sortedEdges) addEdge(_escapeMermaidKeywords(start), _escapeMermaidKeywords(end));
-		for (const [start, branches] of Object.entries(this.builder.branches)) {
-			const defaultEnds = {
-				...Object.fromEntries(Object.keys(this.builder.nodes).filter((k) => k !== start).map((k) => [_escapeMermaidKeywords(k), _escapeMermaidKeywords(k)])),
-				[END]: END
-			};
-			for (const branch of Object.values(branches)) {
-				let ends;
-				if (branch.ends !== void 0) ends = branch.ends;
-				else ends = defaultEnds;
-				for (const [label, end] of Object.entries(ends)) addEdge(_escapeMermaidKeywords(start), _escapeMermaidKeywords(end), label, true);
-			}
-		}
-		return graph;
-	}
-};
-function isCompiledGraph(x) {
-	return typeof x.attachNode === "function" && typeof x.attachEdge === "function";
-}
-function _escapeMermaidKeywords(key) {
-	if (key === "subgraph") return `"${key}"`;
-	return key;
-}
-//#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/channels/named_barrier_value.js
-const areSetsEqual = (a, b) => a.size === b.size && [...a].every((value) => b.has(value));
-/**
-* A channel that waits until all named values are received before making the value available.
-*
-* This ensures that if node N and node M both write to channel C, the value of C will not be updated
-* until N and M have completed updating.
-* @internal
-*/
-var NamedBarrierValue = class NamedBarrierValue extends BaseChannel {
-	constructor(names) {
-		super();
-		Object.defineProperty(this, "lc_graph_name", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: "NamedBarrierValue"
-		});
-		Object.defineProperty(this, "names", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		Object.defineProperty(this, "seen", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		this.names = names;
-		this.seen = /* @__PURE__ */ new Set();
-	}
-	fromCheckpoint(checkpoint) {
-		const empty = new NamedBarrierValue(this.names);
-		if (typeof checkpoint !== "undefined") empty.seen = new Set(checkpoint);
-		return empty;
-	}
-	update(values) {
-		let updated = false;
-		for (const nodeName of values) if (this.names.has(nodeName)) {
-			if (!this.seen.has(nodeName)) {
-				this.seen.add(nodeName);
-				updated = true;
-			}
-		} else throw new InvalidUpdateError(`Value ${JSON.stringify(nodeName)} not in names ${JSON.stringify(this.names)}`);
-		return updated;
-	}
-	get() {
-		if (!areSetsEqual(this.names, this.seen)) throw new EmptyChannelError();
-	}
-	checkpoint() {
-		return [...this.seen];
-	}
-	consume() {
-		if (this.seen && this.names && areSetsEqual(this.seen, this.names)) {
-			this.seen = /* @__PURE__ */ new Set();
-			return true;
-		}
-		return false;
-	}
-};
-//#endregion
 //#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/graph/zod/state.js
 const META_MAP = /* @__PURE__ */ new WeakMap();
 function isZodType(value) {
@@ -150828,12 +150199,6 @@ function isZodType(value) {
 function isZodDefault(value) {
 	return isZodType(value) && "removeDefault" in value && typeof value.removeDefault === "function";
 }
-/**
-* @internal
-*/
-function isAnyZodObject(value) {
-	return isZodType(value) && "partial" in value && typeof value.partial === "function";
-}
 function withLangGraph(schema, meta) {
 	if (meta.reducer && !meta.default) {
 		const defaultValue = isZodDefault(schema) ? schema._def.defaultValue : void 0;
@@ -150841,505 +150206,6 @@ function withLangGraph(schema, meta) {
 	}
 	META_MAP.set(schema, meta);
 	return schema;
-}
-function getMeta(schema) {
-	return META_MAP.get(schema);
-}
-function getChannelsFromZod(schema) {
-	const channels = {};
-	for (const key in schema.shape) if (Object.prototype.hasOwnProperty.call(schema.shape, key)) {
-		const keySchema = schema.shape[key];
-		const meta = getMeta(keySchema);
-		if (meta?.reducer) channels[key] = new BinaryOperatorAggregate(meta.reducer.fn, meta.default);
-		else channels[key] = new LastValue();
-	}
-	return channels;
-}
-//#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/graph/state.js
-const ROOT = "__root__";
-/**
-* A graph whose nodes communicate by reading and writing to a shared state.
-* Each node takes a defined `State` as input and returns a `Partial<State>`.
-*
-* Each state key can optionally be annotated with a reducer function that
-* will be used to aggregate the values of that key received from multiple nodes.
-* The signature of a reducer function is (left: Value, right: UpdateValue) => Value.
-*
-* See {@link Annotation} for more on defining state.
-*
-* After adding nodes and edges to your graph, you must call `.compile()` on it before
-* you can use it.
-*
-* @example
-* ```ts
-* import {
-*   type BaseMessage,
-*   AIMessage,
-*   HumanMessage,
-* } from "@langchain/core/messages";
-* import { StateGraph, Annotation } from "@langchain/langgraph";
-*
-* // Define a state with a single key named "messages" that will
-* // combine a returned BaseMessage or arrays of BaseMessages
-* const StateAnnotation = Annotation.Root({
-*   sentiment: Annotation<string>,
-*   messages: Annotation<BaseMessage[]>({
-*     reducer: (left: BaseMessage[], right: BaseMessage | BaseMessage[]) => {
-*       if (Array.isArray(right)) {
-*         return left.concat(right);
-*       }
-*       return left.concat([right]);
-*     },
-*     default: () => [],
-*   }),
-* });
-*
-* const graphBuilder = new StateGraph(StateAnnotation);
-*
-* // A node in the graph that returns an object with a "messages" key
-* // will update the state by combining the existing value with the returned one.
-* const myNode = (state: typeof StateAnnotation.State) => {
-*   return {
-*     messages: [new AIMessage("Some new response")],
-*     sentiment: "positive",
-*   };
-* };
-*
-* const graph = graphBuilder
-*   .addNode("myNode", myNode)
-*   .addEdge("__start__", "myNode")
-*   .addEdge("myNode", "__end__")
-*   .compile();
-*
-* await graph.invoke({ messages: [new HumanMessage("how are you?")] });
-*
-* // {
-* //   messages: [HumanMessage("how are you?"), AIMessage("Some new response")],
-* //   sentiment: "positive",
-* // }
-* ```
-*/
-var StateGraph = class extends Graph {
-	constructor(fields, configSchema) {
-		super();
-		Object.defineProperty(this, "channels", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: {}
-		});
-		Object.defineProperty(this, "waitingEdges", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: /* @__PURE__ */ new Set()
-		});
-		/** @internal */
-		Object.defineProperty(this, "_schemaDefinition", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		/** @internal */
-		Object.defineProperty(this, "_schemaRuntimeDefinition", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		/** @internal */
-		Object.defineProperty(this, "_inputDefinition", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		/** @internal */
-		Object.defineProperty(this, "_inputRuntimeDefinition", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		/** @internal */
-		Object.defineProperty(this, "_outputDefinition", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		/** @internal */
-		Object.defineProperty(this, "_outputRuntimeDefinition", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		/**
-		* Map schemas to managed values
-		* @internal
-		*/
-		Object.defineProperty(this, "_schemaDefinitions", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: /* @__PURE__ */ new Map()
-		});
-		/** @internal Used only for typing. */
-		Object.defineProperty(this, "_configSchema", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		/** @internal */
-		Object.defineProperty(this, "_configRuntimeSchema", {
-			enumerable: true,
-			configurable: true,
-			writable: true,
-			value: void 0
-		});
-		if (isZodStateGraphArgsWithStateSchema(fields)) {
-			const stateDef = getChannelsFromZod(fields.state);
-			const inputDef = fields.input != null ? getChannelsFromZod(fields.input) : stateDef;
-			const outputDef = fields.output != null ? getChannelsFromZod(fields.output) : stateDef;
-			this._schemaDefinition = stateDef;
-			this._schemaRuntimeDefinition = fields.state;
-			this._inputDefinition = inputDef;
-			this._inputRuntimeDefinition = fields.input ?? fields.state.partial();
-			this._outputDefinition = outputDef;
-			this._outputRuntimeDefinition = fields.output ?? fields.state;
-		} else if (isAnyZodObject(fields)) {
-			const stateDef = getChannelsFromZod(fields);
-			this._schemaDefinition = stateDef;
-			this._schemaRuntimeDefinition = fields;
-			this._inputDefinition = stateDef;
-			this._inputRuntimeDefinition = fields.partial();
-			this._outputDefinition = stateDef;
-			this._outputRuntimeDefinition = fields;
-		} else if (isStateGraphArgsWithInputOutputSchemas(fields)) {
-			this._schemaDefinition = fields.input.spec;
-			this._inputDefinition = fields.input.spec;
-			this._outputDefinition = fields.output.spec;
-		} else if (isStateGraphArgsWithStateSchema(fields)) {
-			this._schemaDefinition = fields.stateSchema.spec;
-			this._inputDefinition = fields.input?.spec ?? this._schemaDefinition;
-			this._outputDefinition = fields.output?.spec ?? this._schemaDefinition;
-		} else if (isStateDefinition(fields) || isAnnotationRoot(fields)) {
-			const spec = isAnnotationRoot(fields) ? fields.spec : fields;
-			this._schemaDefinition = spec;
-		} else if (isStateGraphArgs(fields)) {
-			const spec = _getChannels(fields.channels);
-			this._schemaDefinition = spec;
-		} else throw new Error("Invalid StateGraph input.");
-		this._inputDefinition ??= this._schemaDefinition;
-		this._outputDefinition ??= this._schemaDefinition;
-		this._addSchema(this._schemaDefinition);
-		this._addSchema(this._inputDefinition);
-		this._addSchema(this._outputDefinition);
-		if (isAnyZodObject(configSchema)) this._configRuntimeSchema = configSchema.passthrough();
-	}
-	get allEdges() {
-		return new Set([...this.edges, ...Array.from(this.waitingEdges).flatMap(([starts, end]) => starts.map((start) => [start, end]))]);
-	}
-	_addSchema(stateDefinition) {
-		if (this._schemaDefinitions.has(stateDefinition)) return;
-		this._schemaDefinitions.set(stateDefinition, stateDefinition);
-		for (const [key, val] of Object.entries(stateDefinition)) {
-			let channel;
-			if (typeof val === "function") channel = val();
-			else channel = val;
-			if (this.channels[key] !== void 0) {
-				if (this.channels[key] !== channel) {
-					if (!isConfiguredManagedValue(channel) && channel.lc_graph_name !== "LastValue") throw new Error(`Channel "${key}" already exists with a different type.`);
-				}
-			} else this.channels[key] = channel;
-		}
-	}
-	addNode(...args) {
-		function isMultipleNodes(args) {
-			return args.length >= 1 && typeof args[0] !== "string";
-		}
-		const nodes = isMultipleNodes(args) ? Array.isArray(args[0]) ? args[0] : Object.entries(args[0]) : [[
-			args[0],
-			args[1],
-			args[2]
-		]];
-		if (nodes.length === 0) throw new Error("No nodes provided in `addNode`");
-		for (const [key, action, options] of nodes) {
-			if (key in this.channels) throw new Error(`${key} is already being used as a state attribute (a.k.a. a channel), cannot also be used as a node name.`);
-			for (const reservedChar of ["|", ":"]) if (key.includes(reservedChar)) throw new Error(`"${reservedChar}" is a reserved character and is not allowed in node names.`);
-			this.warnIfCompiled(`Adding a node to a graph that has already been compiled. This will not be reflected in the compiled graph.`);
-			if (key in this.nodes) throw new Error(`Node \`${key}\` already present.`);
-			if (key === "__end__" || key === "__start__") throw new Error(`Node \`${key}\` is reserved.`);
-			let inputSpec = this._schemaDefinition;
-			if (options?.input !== void 0) {
-				if (isAnyZodObject(options.input)) inputSpec = getChannelsFromZod(options.input);
-				else if (options.input.spec !== void 0) inputSpec = options.input.spec;
-			}
-			if (inputSpec !== void 0) this._addSchema(inputSpec);
-			let runnable;
-			if (Runnable.isRunnable(action)) runnable = action;
-			else if (typeof action === "function") runnable = new RunnableCallable({
-				func: action,
-				name: key,
-				trace: false
-			});
-			else runnable = _coerceToRunnable(action);
-			const nodeSpec = {
-				runnable,
-				retryPolicy: options?.retryPolicy,
-				metadata: options?.metadata,
-				input: inputSpec ?? this._schemaDefinition,
-				subgraphs: isPregelLike(runnable) ? [runnable] : options?.subgraphs,
-				ends: options?.ends
-			};
-			this.nodes[key] = nodeSpec;
-		}
-		return this;
-	}
-	addEdge(startKey, endKey) {
-		if (typeof startKey === "string") return super.addEdge(startKey, endKey);
-		if (this.compiled) console.warn("Adding an edge to a graph that has already been compiled. This will not be reflected in the compiled graph.");
-		for (const start of startKey) {
-			if (start === "__end__") throw new Error("END cannot be a start node");
-			if (!Object.keys(this.nodes).some((node) => node === start)) throw new Error(`Need to add a node named "${start}" first`);
-		}
-		if (endKey === "__end__") throw new Error("END cannot be an end node");
-		if (!Object.keys(this.nodes).some((node) => node === endKey)) throw new Error(`Need to add a node named "${endKey}" first`);
-		this.waitingEdges.add([startKey, endKey]);
-		return this;
-	}
-	addSequence(nodes) {
-		const parsedNodes = Array.isArray(nodes) ? nodes : Object.entries(nodes);
-		if (parsedNodes.length === 0) throw new Error("Sequence requires at least one node.");
-		let previousNode;
-		for (const [key, action, options] of parsedNodes) {
-			if (key in this.nodes) throw new Error(`Node names must be unique: node with the name "${key}" already exists.`);
-			const validKey = key;
-			this.addNode(validKey, action, options);
-			if (previousNode != null) this.addEdge(previousNode, validKey);
-			previousNode = validKey;
-		}
-		return this;
-	}
-	compile({ checkpointer, store, interruptBefore, interruptAfter, name } = {}) {
-		this.validate([...Array.isArray(interruptBefore) ? interruptBefore : [], ...Array.isArray(interruptAfter) ? interruptAfter : []]);
-		const outputKeys = Object.keys(this._schemaDefinitions.get(this._outputDefinition));
-		const outputChannels = outputKeys.length === 1 && outputKeys[0] === ROOT ? ROOT : outputKeys;
-		const streamKeys = Object.keys(this.channels);
-		const streamChannels = streamKeys.length === 1 && streamKeys[0] === ROOT ? ROOT : streamKeys;
-		const compiled = new CompiledStateGraph({
-			builder: this,
-			checkpointer,
-			interruptAfter,
-			interruptBefore,
-			autoValidate: false,
-			nodes: {},
-			channels: {
-				...this.channels,
-				[START]: new EphemeralValue()
-			},
-			inputChannels: START,
-			outputChannels,
-			streamChannels,
-			streamMode: "updates",
-			store,
-			name
-		});
-		compiled.attachNode(START);
-		for (const [key, node] of Object.entries(this.nodes)) compiled.attachNode(key, node);
-		compiled.attachBranch(START, SELF, _getControlBranch(), { withReader: false });
-		for (const [key] of Object.entries(this.nodes)) compiled.attachBranch(key, SELF, _getControlBranch(), { withReader: false });
-		for (const [start, end] of this.edges) compiled.attachEdge(start, end);
-		for (const [starts, end] of this.waitingEdges) compiled.attachEdge(starts, end);
-		for (const [start, branches] of Object.entries(this.branches)) for (const [name, branch] of Object.entries(branches)) compiled.attachBranch(start, name, branch);
-		return compiled.validate();
-	}
-};
-function _getChannels(schema) {
-	const channels = {};
-	for (const [name, val] of Object.entries(schema)) if (name === ROOT) channels[name] = getChannel(val);
-	else channels[name] = getChannel(val);
-	return channels;
-}
-/**
-* Final result from building and compiling a {@link StateGraph}.
-* Should not be instantiated directly, only using the StateGraph `.compile()`
-* instance method.
-*/
-var CompiledStateGraph = class extends CompiledGraph {
-	attachNode(key, node) {
-		let outputKeys;
-		if (key === "__start__") outputKeys = Object.entries(this.builder._schemaDefinitions.get(this.builder._inputDefinition)).filter(([_, v]) => !isConfiguredManagedValue(v)).map(([k]) => k);
-		else outputKeys = Object.keys(this.builder.channels);
-		function _getRoot(input) {
-			if (isCommand(input)) {
-				if (input.graph === Command.PARENT) return null;
-				return input._updateAsTuples();
-			} else if (Array.isArray(input) && input.length > 0 && input.some((i) => isCommand(i))) {
-				const updates = [];
-				for (const i of input) if (isCommand(i)) {
-					if (i.graph === Command.PARENT) continue;
-					updates.push(...i._updateAsTuples());
-				} else updates.push([ROOT, i]);
-				return updates;
-			} else if (input != null) return [[ROOT, input]];
-			return null;
-		}
-		const nodeKey = key;
-		function _getUpdates(input) {
-			if (!input) return null;
-			else if (isCommand(input)) {
-				if (input.graph === Command.PARENT) return null;
-				return input._updateAsTuples().filter(([k]) => outputKeys.includes(k));
-			} else if (Array.isArray(input) && input.length > 0 && input.some(isCommand)) {
-				const updates = [];
-				for (const item of input) if (isCommand(item)) {
-					if (item.graph === Command.PARENT) continue;
-					updates.push(...item._updateAsTuples().filter(([k]) => outputKeys.includes(k)));
-				} else {
-					const itemUpdates = _getUpdates(item);
-					if (itemUpdates) updates.push(...itemUpdates ?? []);
-				}
-				return updates;
-			} else if (typeof input === "object" && !Array.isArray(input)) return Object.entries(input).filter(([k]) => outputKeys.includes(k));
-			else {
-				const typeofInput = Array.isArray(input) ? "array" : typeof input;
-				throw new InvalidUpdateError(`Expected node "${nodeKey.toString()}" to return an object or an array containing at least one Command object, received ${typeofInput}`, { lc_error_code: "INVALID_GRAPH_NODE_RETURN_VALUE" });
-			}
-		}
-		const stateWriteEntries = [{
-			value: PASSTHROUGH,
-			mapper: new RunnableCallable({
-				func: outputKeys.length && outputKeys[0] === ROOT ? _getRoot : _getUpdates,
-				trace: false,
-				recurse: false
-			})
-		}];
-		if (key === "__start__") this.nodes[key] = new PregelNode({
-			tags: [TAG_HIDDEN],
-			triggers: [START],
-			channels: [START],
-			writers: [new ChannelWrite(stateWriteEntries, [TAG_HIDDEN])]
-		});
-		else {
-			const inputDefinition = node?.input ?? this.builder._schemaDefinition;
-			const inputValues = Object.fromEntries(Object.keys(this.builder._schemaDefinitions.get(inputDefinition)).map((k) => [k, k]));
-			const isSingleInput = Object.keys(inputValues).length === 1 && ROOT in inputValues;
-			const branchChannel = `branch:to:${key}`;
-			this.channels[branchChannel] = new EphemeralValue(false);
-			this.nodes[key] = new PregelNode({
-				triggers: [branchChannel],
-				channels: isSingleInput ? Object.keys(inputValues) : inputValues,
-				writers: [new ChannelWrite(stateWriteEntries, [TAG_HIDDEN])],
-				mapper: isSingleInput ? void 0 : (input) => {
-					return Object.fromEntries(Object.entries(input).filter(([k]) => k in inputValues));
-				},
-				bound: node?.runnable,
-				metadata: node?.metadata,
-				retryPolicy: node?.retryPolicy,
-				subgraphs: node?.subgraphs,
-				ends: node?.ends
-			});
-		}
-	}
-	attachEdge(start, end) {
-		if (end === "__end__") return;
-		if (typeof start === "string") this.nodes[start].writers.push(new ChannelWrite([{
-			channel: `branch:to:${end}`,
-			value: null
-		}], [TAG_HIDDEN]));
-		else if (Array.isArray(start)) {
-			const channelName = `join:${start.join("+")}:${end}`;
-			this.channels[channelName] = new NamedBarrierValue(new Set(start));
-			this.nodes[end].triggers.push(channelName);
-			for (const s of start) this.nodes[s].writers.push(new ChannelWrite([{
-				channel: channelName,
-				value: s
-			}], [TAG_HIDDEN]));
-		}
-	}
-	attachBranch(start, _, branch, options = { withReader: true }) {
-		const branchWriter = async (packets, config) => {
-			const filteredPackets = packets.filter((p) => p !== END);
-			if (!filteredPackets.length) return;
-			const writes = filteredPackets.map((p) => {
-				if (_isSend(p)) return p;
-				return {
-					channel: `branch:to:${p}`,
-					value: start
-				};
-			});
-			await ChannelWrite.doWrite({
-				...config,
-				tags: (config.tags ?? []).concat([TAG_HIDDEN])
-			}, writes);
-		};
-		this.nodes[start].writers.push(branch.run(branchWriter, options.withReader ? (config) => ChannelRead.doRead(config, this.streamChannels ?? this.outputChannels, true) : void 0));
-	}
-	async _validateInput(input) {
-		const inputSchema = this.builder._inputRuntimeDefinition;
-		if (isCommand(input)) {
-			const parsedInput = input;
-			if (input.update && isAnyZodObject(inputSchema)) parsedInput.update = inputSchema.parse(input.update);
-			return parsedInput;
-		}
-		if (isAnyZodObject(inputSchema)) return inputSchema.parse(input);
-		return input;
-	}
-	async _validateConfigurable(config) {
-		const configSchema = this.builder._configRuntimeSchema;
-		if (isAnyZodObject(configSchema)) configSchema.parse(config);
-		return config;
-	}
-};
-function isStateDefinition(obj) {
-	return typeof obj === "object" && obj !== null && !Array.isArray(obj) && Object.keys(obj).length > 0 && Object.values(obj).every((v) => typeof v === "function" || isBaseChannel(v));
-}
-function isAnnotationRoot(obj) {
-	return typeof obj === "object" && obj !== null && "lc_graph_name" in obj && obj.lc_graph_name === "AnnotationRoot";
-}
-function isStateGraphArgs(obj) {
-	return typeof obj === "object" && obj !== null && obj.channels !== void 0;
-}
-function isStateGraphArgsWithStateSchema(obj) {
-	return typeof obj === "object" && obj !== null && obj.stateSchema !== void 0;
-}
-function isStateGraphArgsWithInputOutputSchemas(obj) {
-	return typeof obj === "object" && obj !== null && obj.stateSchema === void 0 && obj.input !== void 0 && obj.output !== void 0;
-}
-function isZodStateGraphArgsWithStateSchema(value) {
-	if (typeof value !== "object" || value == null) return false;
-	if (!("state" in value) || !isAnyZodObject(value.state)) return false;
-	if ("input" in value && !isAnyZodObject(value.input)) return false;
-	if ("output" in value && !isAnyZodObject(value.output)) return false;
-	return true;
-}
-function _controlBranch(value) {
-	if (_isSend(value)) return [value];
-	const commands = [];
-	if (isCommand(value)) commands.push(value);
-	else if (Array.isArray(value)) commands.push(...value.filter(isCommand));
-	const destinations = [];
-	for (const command of commands) {
-		if (command.graph === Command.PARENT) throw new ParentCommand(command);
-		if (_isSend(command.goto)) destinations.push(command.goto);
-		else if (typeof command.goto === "string") destinations.push(command.goto);
-		else if (Array.isArray(command.goto)) destinations.push(...command.goto);
-	}
-	return destinations;
-}
-function _getControlBranch() {
-	return new Branch({ path: new RunnableCallable({
-		func: _controlBranch,
-		tags: [TAG_HIDDEN],
-		trace: false,
-		recurse: false,
-		name: "<control_branch>"
-	}) });
 }
 //#endregion
 //#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/graph/message.js
@@ -152217,14 +151083,16 @@ var CommentPoster = class {
 	* Post all findings as a single batch review.
 	* Review state is always COMMENT — never auto-approve or request changes.
 	*/
-	async postReview(prNumber, findings) {
+	async postReview(prNumber, findings, headSha = "") {
 		if (findings.length === 0) return;
-		const comments = findings.map((f) => ({
+		const existing = await this.fetchInlineMarkers(prNumber);
+		const comments = findings.filter((f) => !existing.has(this.inlineMarker(headSha, f))).map((f) => ({
 			path: f.file,
 			line: f.startLine,
 			side: "RIGHT",
-			body: formatInlineComment(f)
+			body: `${formatInlineComment(f)}\n\n${this.inlineMarker(headSha, f)}`
 		}));
+		if (comments.length === 0) return;
 		await this.client["api"].post(`/repos/${this.client.owner}/${this.client.repo}/pulls/${prNumber}/reviews`, {
 			event: "COMMENT",
 			comments
@@ -152238,7 +151106,7 @@ var CommentPoster = class {
 		const summary = enrichReviewSummary(pr, findings, baseSummary, await this.fetchReviewState(prNumber));
 		const state = buildReviewState(pr, findings);
 		const newFindings = summary.newFindings ?? findings;
-		if (newFindings.length > 0) await this.postReview(prNumber, newFindings);
+		if (newFindings.length > 0) await this.postReview(prNumber, newFindings, pr.metadata.headSha);
 		await this.postSummaryComment(prNumber, summary, state);
 		return summary;
 	}
@@ -152263,58 +151131,63 @@ var CommentPoster = class {
 	async postAcknowledgement(prNumber, message) {
 		await this.client["api"].post(`/repos/${this.client.owner}/${this.client.repo}/issues/${prNumber}/comments`, { body: message });
 	}
+	inlineMarker(headSha, finding) {
+		const key = [
+			headSha,
+			finding.file,
+			finding.startLine,
+			finding.title.toLowerCase().trim()
+		].join("\0");
+		return `<!-- openreview-finding:${createHash("sha256").update(key).digest("hex").slice(0, 24)} -->`;
+	}
+	async fetchInlineMarkers(prNumber) {
+		const markers = /* @__PURE__ */ new Set();
+		for (let page = 1; page <= 10; page++) {
+			const { data } = await this.client["api"].get(`/repos/${this.client.owner}/${this.client.repo}/pulls/${prNumber}/comments`, { params: {
+				per_page: 100,
+				page,
+				sort: "created",
+				direction: "desc"
+			} });
+			for (const comment of data) {
+				if (process.env.GITHUB_ACTIONS === "true" && comment.user?.login && comment.user.login !== "github-actions[bot]") continue;
+				const match = typeof comment.body === "string" ? comment.body.match(/<!-- openreview-finding:[a-f0-9]{24} -->/) : null;
+				if (match) markers.add(match[0]);
+			}
+			if (data.length < 100) break;
+		}
+		return markers;
+	}
 	async postOrUpdateMarkedComment(prNumber, marker, body) {
-		const latestIssue = await this.fetchLatestIssueComment(prNumber);
 		const marked = await this.findMarkedCommentRecord(prNumber, marker);
 		if (marked) {
-			if (latestIssue && marked.id === latestIssue.id) {
-				await this.client["api"].patch(`/repos/${this.client.owner}/${this.client.repo}/issues/comments/${marked.id}`, { body });
-				return;
-			}
-			await this.client["api"].delete(`/repos/${this.client.owner}/${this.client.repo}/issues/comments/${marked.id}`);
+			await this.client["api"].patch(`/repos/${this.client.owner}/${this.client.repo}/issues/comments/${marked.id}`, { body });
+			return;
 		}
 		await this.client["api"].post(`/repos/${this.client.owner}/${this.client.repo}/issues/${prNumber}/comments`, { body });
-	}
-	async fetchLatestIssueComment(prNumber) {
-		const { data } = await this.client["api"].get(`/repos/${this.client.owner}/${this.client.repo}/issues/${prNumber}/comments`, { params: {
-			per_page: 1,
-			page: 1,
-			sort: "created",
-			direction: "desc"
-		} });
-		const comment = data[0];
-		if (!comment || typeof comment.body !== "string") return null;
-		return {
-			id: comment.id,
-			body: comment.body
-		};
 	}
 	async fetchMarkedCommentBody(prNumber, marker) {
 		const comment = await this.findMarkedCommentRecord(prNumber, marker);
 		return typeof comment?.body === "string" ? comment.body : null;
 	}
-	async findMarkedComment(prNumber, marker) {
-		return (await this.findMarkedCommentRecord(prNumber, marker))?.id ?? null;
-	}
-	/**
-	* Return the newest issue comment containing `marker`.
-	* Older duplicates are left untouched — we always refresh the latest one so
-	* updates appear near the bottom of busy PR threads.
-	*/
+	/** Return the existing summary without disturbing later conversation. */
 	async findMarkedCommentRecord(prNumber, marker) {
 		let page = 1;
 		const perPage = 100;
-		while (true) {
+		while (page <= 10) {
 			const { data } = await this.client["api"].get(`/repos/${this.client.owner}/${this.client.repo}/issues/${prNumber}/comments`, { params: {
 				per_page: perPage,
 				page,
 				sort: "created",
 				direction: "desc"
 			} });
-			for (const comment of data) if (typeof comment.body === "string" && comment.body.includes(marker)) return {
-				id: comment.id,
-				body: comment.body
-			};
+			for (const comment of data) {
+				if (process.env.GITHUB_ACTIONS === "true" && comment.user?.login && comment.user.login !== "github-actions[bot]") continue;
+				if (typeof comment.body === "string" && comment.body.includes(marker)) return {
+					id: comment.id,
+					body: comment.body
+				};
+			}
 			if (data.length < perPage) break;
 			page++;
 		}
@@ -152455,7 +151328,7 @@ function extractDiffForFiles(rawDiff, files) {
 	}
 	return kept.join("");
 }
-function toGoRequest(pr, files) {
+function toGoRequest(pr, files, reviewKind = "fast") {
 	return {
 		contractVersion: 2,
 		mode: "branch",
@@ -152464,6 +151337,8 @@ function toGoRequest(pr, files) {
 		headSha: pr.metadata.headSha,
 		title: pr.metadata.title,
 		instructions: pr.instructions,
+		reviewKind,
+		worktreeRoot: process.env.GITHUB_WORKSPACE || process.cwd(),
 		diff: "",
 		files: [],
 		changes: files.map((file) => ({
@@ -152484,7 +151359,7 @@ function sourceRoot() {
 	}
 	throw new Error("Go review source unavailable; set OPEN_REVIEW_BIN to a built open-review executable");
 }
-async function runGoReview(pr, files, maxFiles = 100) {
+async function runGoReview(pr, files, maxFiles = 100, reviewKind = "fast") {
 	if (!Number.isSafeInteger(maxFiles) || maxFiles < 1) throw new Error("max-files must be a positive integer");
 	const bundledAction = dirname(fileURLToPath(import.meta.url)).endsWith(join("action", "dist"));
 	if (bundledAction && (process.platform !== "linux" || process.arch !== "x64")) throw new Error("This Action requires a Linux x64 runner");
@@ -152504,7 +151379,7 @@ async function runGoReview(pr, files, maxFiles = 100) {
 		String(maxFiles)
 	];
 	const cwd = binary ? process.cwd() : root;
-	const request = JSON.stringify(toGoRequest(pr, files));
+	const request = JSON.stringify(toGoRequest(pr, files, reviewKind));
 	if (Buffer.byteLength(request) > 1e7) throw new Error("Review request exceeds 10 MB");
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
@@ -152542,111 +151417,7 @@ async function runGoReview(pr, files, maxFiles = 100) {
 		child.stdin.end(request);
 	});
 }
-/**
-* Verify Deno 2.7+ is installed. Throws a descriptive error if missing
-* or if the installed version is too old.
-*/
-async function verifyDenoInstallation() {
-	return new Promise((resolve, reject) => {
-		execFile("deno", ["--version"], { timeout: 5e3 }, (error, stdout) => {
-			if (error) {
-				reject(/* @__PURE__ */ new Error("Deno is not installed or not found on PATH. RLM deep mode requires Deno 2.7+. Install from https://deno.land"));
-				return;
-			}
-			const match = stdout.match(/deno\s+(\d+)\.(\d+)\.(\d+)/);
-			if (!match) {
-				reject(/* @__PURE__ */ new Error(`Unable to parse Deno version from output: ${stdout.trim()}`));
-				return;
-			}
-			const major = parseInt(match[1], 10);
-			const minor = parseInt(match[2], 10);
-			const version = `${match[1]}.${match[2]}.${match[3]}`;
-			if (major < 2 || major === 2 && minor < 7) {
-				reject(/* @__PURE__ */ new Error(`Deno ${version} is installed but RLM deep mode requires Deno 2.7+. Please upgrade: https://deno.land`));
-				return;
-			}
-			resolve(version);
-		});
-	});
-}
-const DEFAULT_TIMEOUT_MS = 15e3;
-/**
-* Build a Deno script that injects `globals` as a top-level `const GLOBALS`
-* and then runs the user-supplied `code`.
-*/
-function buildScript(code, globals) {
-	return `const GLOBALS = ${JSON.stringify(globals)};\n\n${code}`;
-}
-/**
-* Execute arbitrary code inside a Deno sandbox with strict permissions.
-*
-* Uses `deno run` with a temp file (not `deno eval`) because `deno eval`
-* has implicit all-permissions and doesn't support --deny-* flags.
-*
-* Permissions:
-* - `--allow-read` only (for reading the temp script file)
-* - `--deny-net` (no network)
-* - `--deny-write` (no file writes)
-* - `--deny-env` (no environment variable access)
-* - `--deny-run` (no subprocess spawning)
-*
-* `globals` are injected as `GLOBALS` constant available in user code.
-*/
-async function executeSandboxed(code, globals = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
-	const script = buildScript(code, globals);
-	const start = Date.now();
-	const sandboxDir = join(tmpdir(), "openreview-sandbox");
-	if (!existsSync(sandboxDir)) mkdirSync(sandboxDir, { recursive: true });
-	const scriptPath = join(sandboxDir, `sandbox-${randomUUID$1().slice(0, 8)}.ts`);
-	writeFileSync(scriptPath, script, "utf-8");
-	return new Promise((resolve) => {
-		const controller = new AbortController();
-		const timeout = setTimeout(() => {
-			controller.abort();
-		}, timeoutMs);
-		execFile("deno", [
-			"run",
-			"--ext=ts",
-			`--allow-read=${scriptPath}`,
-			"--deny-net",
-			"--deny-env",
-			"--deny-run",
-			scriptPath
-		], {
-			signal: controller.signal,
-			timeout: timeoutMs + 1e3,
-			maxBuffer: 10 * 1024 * 1024,
-			env: {
-				PATH: process.env.PATH ?? "",
-				HOME: process.env.HOME ?? "",
-				DENO_DIR: process.env.DENO_DIR ?? ""
-			}
-		}, (error, stdout, stderr) => {
-			clearTimeout(timeout);
-			const duration = Date.now() - start;
-			try {
-				unlinkSync(scriptPath);
-			} catch {}
-			if (error && controller.signal.aborted) {
-				resolve({
-					stdout: "",
-					stderr: `Sandbox execution timed out after ${timeoutMs}ms`,
-					exitCode: 124,
-					duration
-				});
-				return;
-			}
-			const rawCode = error ? error.code : 0;
-			resolve({
-				stdout: typeof stdout === "string" ? stdout : "",
-				stderr: typeof stderr === "string" ? stderr : "",
-				exitCode: typeof rawCode === "number" ? rawCode : 1,
-				duration
-			});
-		});
-	});
-}
-const RLMState = Annotation.Root({
+Annotation.Root({
 	messages: Annotation({
 		reducer: (prev, next) => [...prev, ...next],
 		default: () => []
@@ -152672,314 +151443,6 @@ const RLMState = Annotation.Root({
 		default: () => false
 	})
 });
-function buildReasonNode(pr, snapshot, onEvent, sandboxAvailable = true) {
-	const llm = createMainLLM();
-	return async (state) => {
-		const iteration = state.iterations + 1;
-		onEvent?.({
-			type: "iteration",
-			iteration,
-			message: `Starting iteration ${iteration}`
-		});
-		const systemPrompt = buildRLMSystemPrompt(pr, sandboxAvailable);
-		const remaining = config.maxIterations - iteration;
-		const urgency = remaining <= 2 ? "\n⚠️ You are running low on iterations. Call finish_review NOW unless you have a critical investigation remaining." : remaining <= 4 ? "\n⏳ Iterations are limited — focus on the most impactful findings and converge soon." : "";
-		const messages = [
-			{
-				role: "system",
-				content: systemPrompt
-			},
-			...state.messages,
-			{
-				role: "human",
-				content: `Iteration ${iteration} of ${config.maxIterations}.${urgency}\nAnalyze the code and either:
-1. Write a CONCISE code block to investigate further (will be executed in a Deno sandbox)
-2. Call finish_review if you have enough information
-
-Available files in GLOBALS: ` + Object.keys(state.files).join(", ") + "\n\nYou can request additional files by outputting: FETCH_FILE: <path>"
-			}
-		];
-		const response = await llm.invoke(messages.map((m) => ({
-			role: m.role,
-			content: m.content
-		})));
-		const responseText = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
-		onEvent?.({
-			type: "reasoning",
-			iteration,
-			message: responseText.slice(0, 200) + "..."
-		});
-		const fetchRequests = extractFetchRequests(responseText);
-		const updatedFiles = { ...state.files };
-		for (const filePath of fetchRequests) if (!(filePath in updatedFiles)) {
-			const content = await snapshot.getFile(filePath);
-			if (content) updatedFiles[filePath] = content;
-		}
-		return {
-			messages: [{
-				role: "ai",
-				content: responseText
-			}],
-			iterations: iteration,
-			llmCalls: state.llmCalls + 1,
-			files: updatedFiles,
-			findings: state.findings,
-			done: state.done
-		};
-	};
-}
-function buildCodeWriterNode() {
-	return async (state) => {
-		const lastMessage = state.messages[state.messages.length - 1];
-		if (!lastMessage) return state;
-		const codeBlock = extractCodeBlock(lastMessage.content);
-		if (!codeBlock) return {
-			messages: [{
-				role: "human",
-				content: "No code block found in reasoning output."
-			}],
-			iterations: state.iterations,
-			llmCalls: state.llmCalls,
-			files: state.files,
-			findings: state.findings,
-			done: state.done
-		};
-		return {
-			messages: [{
-				role: "human",
-				content: `Code to execute:\n\`\`\`typescript\n${codeBlock}\n\`\`\``
-			}],
-			iterations: state.iterations,
-			llmCalls: state.llmCalls,
-			files: state.files,
-			findings: state.findings,
-			done: state.done
-		};
-	};
-}
-function buildSandboxNode(onEvent) {
-	return async (state) => {
-		const lastMessage = state.messages[state.messages.length - 1];
-		if (!lastMessage) return state;
-		const codeBlock = extractCodeBlock(lastMessage.content);
-		if (!codeBlock) return {
-			messages: [{
-				role: "human",
-				content: "No code to execute."
-			}],
-			iterations: state.iterations,
-			llmCalls: state.llmCalls,
-			files: state.files,
-			findings: state.findings,
-			done: state.done
-		};
-		const result = await executeSandboxed(codeBlock, state.files);
-		const sandboxMsg = result.exitCode === 0 ? `Sandbox: exit=0 duration=${result.duration}ms` : `Sandbox: exit=${result.exitCode} duration=${result.duration}ms` + (result.stderr ? ` | ${result.stderr.slice(0, 200)}` : "");
-		onEvent?.({
-			type: "sandbox",
-			iteration: state.iterations,
-			message: sandboxMsg
-		});
-		return {
-			messages: [{
-				role: "human",
-				content: [
-					`Sandbox execution result (exit code: ${result.exitCode}, duration: ${result.duration}ms):`,
-					"",
-					result.stdout ? `STDOUT:\n${result.stdout}` : "STDOUT: (empty)",
-					"",
-					result.stderr ? `STDERR:\n${result.stderr}` : "STDERR: (empty)"
-				].join("\n")
-			}],
-			iterations: state.iterations,
-			llmCalls: state.llmCalls,
-			files: state.files,
-			findings: state.findings,
-			done: state.done
-		};
-	};
-}
-function buildObserveNode() {
-	return async (state) => {
-		return {
-			messages: [],
-			iterations: state.iterations,
-			llmCalls: state.llmCalls,
-			files: state.files,
-			findings: state.findings,
-			done: state.done
-		};
-	};
-}
-function buildFinalizeNode(pr, onEvent) {
-	const llm = createMainLLM();
-	return async (state) => {
-		onEvent?.({
-			type: "finalize",
-			iteration: state.iterations,
-			message: "Producing final findings from all observations"
-		});
-		const finalPrompt = [
-			{
-				role: "system",
-				content: buildFinalizationPrompt()
-			},
-			...state.messages,
-			{
-				role: "human",
-				content: `Based on all your analysis across ${state.iterations} iterations, produce the final review findings for PR #${pr.prNumber} in ${pr.owner}/${pr.repo}.\n\nRespond ONLY with a valid JSON array of findings.`
-			}
-		];
-		const response = await llm.invoke(finalPrompt.map((m) => ({
-			role: m.role,
-			content: m.content
-		})));
-		const responseText = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
-		const findings = parseRLMFindings(responseText);
-		return {
-			messages: [{
-				role: "ai",
-				content: responseText
-			}],
-			iterations: state.iterations,
-			llmCalls: state.llmCalls + 1,
-			files: state.files,
-			findings,
-			done: true
-		};
-	};
-}
-function shouldContinue(state) {
-	if (state.iterations >= config.maxIterations) return "finalize";
-	if (state.llmCalls >= config.maxLlmCalls) return "finalize";
-	const lastMessage = state.messages[state.messages.length - 1];
-	if (lastMessage && /^\s*finish_review\s*$/im.test(lastMessage.content)) return "finalize";
-	return "code_writer";
-}
-async function runRLM(pr, snapshot, onEvent) {
-	let sandboxAvailable = false;
-	try {
-		await verifyDenoInstallation();
-		sandboxAvailable = true;
-	} catch {}
-	const initialFiles = {};
-	const diffPaths = snapshot.getCachedPaths();
-	for (const path of diffPaths) {
-		const content = await snapshot.getFile(path);
-		if (content) initialFiles[path] = content;
-	}
-	const graph = new StateGraph(RLMState).addNode("reason", buildReasonNode(pr, snapshot, onEvent, sandboxAvailable)).addNode("code_writer", buildCodeWriterNode()).addNode("sandbox", buildSandboxNode(onEvent)).addNode("observe", buildObserveNode()).addNode("finalize", buildFinalizeNode(pr, onEvent)).addEdge(START, "reason").addConditionalEdges("reason", shouldContinue, {
-		code_writer: "code_writer",
-		finalize: "finalize"
-	}).addEdge("code_writer", "sandbox").addEdge("sandbox", "observe").addEdge("observe", "reason").addEdge("finalize", END).compile();
-	const recursionLimit = config.maxIterations * 5 + 10;
-	return (await graph.invoke({
-		messages: [{
-			role: "human",
-			content: `Review PR #${pr.prNumber}: "${pr.metadata.title}" by ${pr.metadata.author}\n\nDiff:\n\`\`\`diff\n${pr.diff}\n\`\`\``
-		}],
-		iterations: 0,
-		llmCalls: 0,
-		files: initialFiles,
-		findings: [],
-		done: false
-	}, { recursionLimit })).findings;
-}
-function buildRLMSystemPrompt(pr, sandboxAvailable) {
-	const parts = [
-		"You are OpenReview RLM (Reason-Loop-Measure), a deep code analysis agent.",
-		"You review code by iteratively reasoning, writing analysis scripts, and observing results.",
-		""
-	];
-	if (sandboxAvailable) parts.push("Your workflow:", "1. Reason about the code and identify areas to investigate", "2. Write TypeScript code blocks that will be executed in a Deno sandbox", "3. The code has access to `GLOBALS` object containing file contents", "4. Observe sandbox output and continue investigating or finalize", "", "Write investigative code that:", "- Parses file contents from GLOBALS", "- Checks for patterns, anti-patterns, or bugs", "- Outputs findings to stdout");
-	else parts.push("⚠️ SANDBOX UNAVAILABLE: Deno is not installed. Do NOT write code blocks — they will fail.", "Instead, analyze the code through reasoning only:", "1. Read the diff and file contents provided in GLOBALS carefully", "2. Reason about bugs, security issues, logic errors, and quality problems", "3. Output FINISH_REVIEW once you have identified all issues", "", "Focus on thorough reasoning since you cannot execute verification scripts.");
-	parts.push("", "To request additional files, output: FETCH_FILE: <path>", "To finish the review, output FINISH_REVIEW alone on its own line as the last line of your response.", "", "Efficiency guidelines:", "- Each iteration costs time. Investigate multiple concerns per iteration when possible.", "- Write focused, concise scripts — avoid unnecessary complexity.", "- Output FINISH_REVIEW as soon as you have sufficient evidence. Do not exhaust all iterations.", "- Aim to complete your analysis in 4-6 iterations for typical PRs.", "", `Repository: ${pr.owner}/${pr.repo}`, `PR #${pr.prNumber}: ${pr.metadata.title}`, `Author: ${pr.metadata.author}`);
-	if (pr.instructions) parts.push("", "## Project Review Instructions", pr.instructions);
-	if (pr.learnings.length > 0) parts.push("", "## Team Learnings", ...pr.learnings.map((l) => `- ${l}`));
-	return parts.join("\n");
-}
-function buildFinalizationPrompt() {
-	return [
-		"You are OpenReview. Based on all the analysis performed across multiple iterations,",
-		"produce the final review findings.",
-		"",
-		"Respond ONLY with a valid JSON array. Each finding must have this schema:",
-		"```json",
-		"[{",
-		"  \"category\": \"bug\" | \"flag\",",
-		"  \"severity\": \"severe\" | \"non-severe\" | \"investigate\" | \"informational\",",
-		"  \"file\": \"path/to/file.ts\",",
-		"  \"startLine\": 10,",
-		"  \"endLine\": 12,",
-		"  \"title\": \"Short title\",",
-		"  \"explanation\": \"Detailed explanation backed by sandbox observations\",",
-		"  \"suggestedFix\": \"Optional corrected code\",",
-		"  \"citations\": [{\"file\": \"path/to/file.ts\", \"startLine\": 10, \"endLine\": 12}]",
-		"}]",
-		"```",
-		"",
-		"Rules:",
-		"- Only report findings backed by evidence from your sandbox analysis.",
-		"- Include citations pointing to the exact lines.",
-		"- If no issues were found, respond with an empty array: []"
-	].join("\n");
-}
-function extractCodeBlock(text) {
-	const match = /```(?:typescript|ts)?\s*\n([\s\S]*?)\n```/.exec(text);
-	return match ? match[1].trim() : null;
-}
-function extractFetchRequests(text) {
-	return [...text.matchAll(/FETCH_FILE:\s*(.+)/g)].map((m) => m[1].trim());
-}
-function parseRLMFindings(text) {
-	const cleaned = text.replace(/^```(?:json)?\s*\n?/m, "").replace(/\n?```\s*$/m, "").trim();
-	let parsed;
-	try {
-		parsed = JSON.parse(cleaned);
-	} catch {
-		const match = /\[[\s\S]*\]/.exec(cleaned);
-		if (!match) return [];
-		try {
-			parsed = JSON.parse(match[0]);
-		} catch {
-			return [];
-		}
-	}
-	if (!Array.isArray(parsed)) return [];
-	const findings = [];
-	for (const item of parsed) {
-		const raw = item;
-		if (!raw.file || !raw.startLine || !raw.title || !raw.explanation) continue;
-		const category = raw.category === "bug" ? "bug" : "flag";
-		const severity = isValidSeverity(raw.severity) ? raw.severity : "investigate";
-		const citations = raw.citations?.filter((c) => c.file && c.startLine).map((c) => ({
-			file: c.file,
-			startLine: c.startLine,
-			endLine: c.endLine ?? c.startLine
-		})) ?? [{
-			file: raw.file,
-			startLine: raw.startLine,
-			endLine: raw.endLine ?? raw.startLine
-		}];
-		findings.push({
-			id: `rlm-${randomUUID$1().slice(0, 8)}`,
-			category,
-			severity,
-			file: raw.file,
-			startLine: raw.startLine,
-			endLine: raw.endLine ?? raw.startLine,
-			title: raw.title,
-			explanation: raw.explanation,
-			suggestedFix: raw.suggestedFix,
-			source: "ai",
-			citations
-		});
-	}
-	return findings;
-}
-function isValidSeverity(s) {
-	return s === "severe" || s === "non-severe" || s === "investigate" || s === "informational";
-}
 /**
 * Hybrid snapshot that pre-loads diff file contents and lazily fetches
 * additional files from the GitHub API on demand. Respects per-file and
@@ -153348,14 +151811,8 @@ async function handleComment(context) {
 			const prMeta = await client.getPR(prNumber);
 			const files = await client.getPRFiles(prNumber);
 			const diff = await client.getPRDiff(prNumber);
-			const parsedDiffs = parseDiff(diff);
-			const snapshot = new SnapshotBuilder({
-				client,
-				headRef: prMeta.head.sha,
-				diffs: parsedDiffs
-			});
 			const { instructions } = await loadRepoConfigFromGitHub(client, prMeta.head.sha);
-			const findings = await runRLM({
+			const prContext = {
 				owner,
 				repo,
 				prNumber,
@@ -153370,10 +151827,16 @@ async function handleComment(context) {
 				files: files.map((f) => f.filename),
 				instructions,
 				learnings: []
-			}, snapshot, (event) => {
-				info(`[RLM] ${event.type} iter=${event.iteration}: ${event.message.slice(0, 100)}`);
-			});
-			if (findings.length > 0) await poster.postReview(prNumber, findings);
+			};
+			const result = await runGoReview(prContext, files, 100, "deep");
+			for (const event of result.audit ?? []) info(`[Deep] ${event.stage}: ${event.status}`);
+			if (result.status === "failed") throw new Error(result.error || "Deep review failed");
+			if (result.status === "empty" || result.status === "skipped") {
+				await poster.postAcknowledgement(prNumber, "[INFO] **open-review** — No reviewable files.");
+				return;
+			}
+			const findings = result.findings;
+			await poster.postReviewResults(prNumber, prContext, findings, result.summary ?? buildFastReviewSummary([], 0, 0));
 			await poster.postAcknowledgement(prNumber, `[SUCCESS] **open-review** — RLM deep review complete. Found ${findings.length} issue(s).`);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
@@ -153407,6 +151870,7 @@ async function handleComment(context) {
 				learnings: []
 			};
 			const result = await runGoReview(prContext, files);
+			for (const event of result.audit ?? []) info(`Review audit: ${event.stage} ${event.status}`);
 			if (result.status === "failed") throw new Error(result.error || "Go review failed");
 			if (result.status === "empty" || result.status === "skipped") {
 				await poster.postAcknowledgement(prNumber, "[INFO] **open-review** — No reviewable files in this PR.");
@@ -153538,7 +152002,6 @@ async function handlePullRequest(context) {
 		repo
 	});
 	const poster = new CommentPoster(client);
-	await poster.postAcknowledgement(prNumber, "[INFO] **open-review** — Review started... results will appear shortly.");
 	try {
 		const prMeta = await client.getPR(prNumber);
 		const files = await client.getPRFiles(prNumber);
@@ -153566,6 +152029,7 @@ async function handlePullRequest(context) {
 		const { findings } = result;
 		const summary = result.summary ?? buildFastReviewSummary([], 0, 0);
 		for (const entry of result.coverage) info(`Review coverage: ${entry.state} ${entry.path}${entry.reason ? ` (${entry.reason})` : ""}`);
+		for (const event of result.audit ?? []) info(`Review audit: ${event.stage} ${event.status}${event.message ? ` (${event.message})` : ""}`);
 		if (result.status === "failed") throw new Error(result.error || "Go review failed");
 		if (result.status === "empty" || result.status === "skipped") {
 			await poster.postAcknowledgement(prNumber, "[INFO] **open-review** — No reviewable files in this PR. See the Action log for coverage.");

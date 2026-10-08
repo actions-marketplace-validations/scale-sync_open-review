@@ -93,6 +93,6 @@ describe('pull request Action review scope', () => {
     } as unknown as Context;
     await handlePullRequest(context);
     expect(mocks.postReviewResults).not.toHaveBeenCalled();
-    expect(mocks.postAcknowledgement).toHaveBeenCalledTimes(2);
+    expect(mocks.postAcknowledgement).toHaveBeenCalledTimes(1);
   });
 });

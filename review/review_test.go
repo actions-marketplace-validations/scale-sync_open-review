@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/scale-sync/open-review/review/internal/diff"
@@ -38,5 +41,58 @@ func TestGoReviewPreservesFullChanges(t *testing.T) {
 	})
 	if err != nil || result.Status != "complete" || len(result.Findings) != 1 || result.Coverage[0].State != "reviewed" || result.Request.Changes[0].Patch != patch {
 		t.Fatalf("result = %+v, %v", result, err)
+	}
+}
+
+func TestDeepReviewUsesSandboxAuditAndGoValidation(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "deno"), []byte("#!/bin/sh\nprintf '%s' 'verified condition'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	finalPrompt := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		answer := `{"code":"console.log('verified condition')"}`
+		if len(body.Messages) > 0 && strings.Contains(body.Messages[0].Content, "Prior observations:\n\nCheck 1:") {
+			answer = `{"code":"","done":true}`
+		}
+		if len(body.Messages) > 0 && !strings.Contains(body.Messages[0].Content, "Investigate the diff") {
+			finalPrompt = body.Messages[0].Content
+			answer = `{"findings":[]}`
+		}
+		encoded, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": answer}}}})
+		_, _ = w.Write(encoded)
+	}))
+	defer server.Close()
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	t.Setenv("MAIN_MODEL", "gpt-4o")
+	patch := "diff --git a/main.go b/main.go\n@@ -0,0 +1 @@\n+bad\n"
+	result, err := Run(context.Background(), Request{ContractVersion: 2, ReviewKind: "deep", Mode: "branch", RepoRoot: "org/repo", Files: []string{"main.go"}, Diff: patch, Changes: []diff.Change{diff.FromPatch(diff.Change{Path: "main.go", Patch: patch})}})
+	if err != nil || result.Status != "complete" || len(result.Audit) != 1 || result.Audit[0].Status != "complete" || !strings.Contains(finalPrompt, "verified condition") || !strings.Contains(string(result.Summary), `"mode":"rlm"`) {
+		t.Fatalf("result = %+v, prompt = %q, err = %v", result, finalPrompt, err)
+	}
+}
+
+func TestDeepReviewWithoutDenoRecordsUnverifiedPass(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`))
+	}))
+	defer server.Close()
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	t.Setenv("MAIN_MODEL", "gpt-4o")
+	result, err := Run(context.Background(), Request{ContractVersion: 2, ReviewKind: "deep", RepoRoot: "org/repo", Files: []string{"main.go"}, Diff: "diff --git a/main.go b/main.go\n+bad\n"})
+	if err != nil || result.Status != "complete" || len(result.Audit) != 1 || result.Audit[0].Status != "unavailable" {
+		t.Fatalf("result = %+v, err = %v", result, err)
 	}
 }

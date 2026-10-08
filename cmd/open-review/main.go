@@ -33,7 +33,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 		return runJSON(ctx, args[1:], os.Stdin, output)
 	}
 	if len(args) == 0 || args[0] != "review" {
-		return errors.New("usage: open-review review [--repo PATH] [--workspace | --base REF --head REF | --commit REF] [--include GLOB] [--exclude GLOB] [--preview] [--output text|json]")
+		return errors.New("usage: open-review review [--repo PATH] [--workspace | --base REF --head REF | --commit REF] [--deep] [--include GLOB] [--exclude GLOB] [--preview] [--output text|json]")
 	}
 	flags := flag.NewFlagSet("review", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -44,6 +44,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	commit := flags.String("commit", "", "single commit")
 	format := flags.String("output", "text", "text or json")
 	preview := flags.Bool("preview", false, "show selected and skipped files without calling a model")
+	deep := flags.Bool("deep", false, "run bounded deep verification before review")
 	maxFiles := flags.Int("max-files", 100, "maximum selected files")
 	maxFileBytes := flags.Int("max-file-bytes", 1<<20, "maximum full patch bytes per file")
 	maxPatchBytes := flags.Int("max-patch-bytes", 38_000, "maximum bytes sent per file")
@@ -74,6 +75,9 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	req, err := review.Prepare(ctx, review.Options{Repo: *repo, Mode: mode, Base: *base, Head: *head, Commit: *commit, Include: include, Exclude: exclude, MaxFiles: *maxFiles, MaxFileBytes: *maxFileBytes, MaxPatchBytes: *maxPatchBytes})
 	if err != nil {
 		return err
+	}
+	if *deep {
+		req.ReviewKind = "deep"
 	}
 	if *preview {
 		if *format == "json" {
@@ -125,6 +129,9 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	}
 	if err := printCoverage(output, result.Coverage); err != nil {
 		return err
+	}
+	for _, event := range result.Audit {
+		if _, err := fmt.Fprintf(output, "  audit %s: %s\n", event.Stage, event.Status); err != nil { return err }
 	}
 	return reviewErr
 }

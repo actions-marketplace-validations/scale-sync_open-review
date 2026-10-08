@@ -61,6 +61,8 @@
         "files": { "type": "array", "items": { "type": "string" } },
         "title": { "type": "string" },
         "instructions": { "type": "string" },
+        "reviewKind": { "enum": ["fast", "deep"] },
+        "worktreeRoot": { "type": "string" },
         "changes": { "type": "array", "items": { "$ref": "#/$defs/change" } },
         "coverage": { "type": "array", "items": { "$ref": "#/$defs/coverage" } }
       }
@@ -76,6 +78,7 @@
     "findings": { "type": "array", "items": { "type": "object" } },
     "summary": { "type": "object" },
     "trace": { "type": "object" },
+    "audit": { "type": "array", "items": { "type": "object" } },
     "error": { "type": "string" }
   }
 }

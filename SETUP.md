@@ -48,7 +48,7 @@ The existing TypeScript CLI still reviews a GitHub pull request when provided a 
 node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123
 ```
 
-The GitHub Action lives in `action/` and includes a bundled adapter plus a Linux x64 Go executable. Use `scale-sync/open-review/action@v0.7.0` from a Linux x64 runner. It does not install dependencies when the event runs. There is no npm, PyPI, crates.io, or Go registry publication in this release.
+The GitHub Action lives in `action/` and includes a bundled adapter plus a Linux x64 Go executable. Use `scale-sync/open-review/action@v0.8.0` from a Linux x64 runner. It does not install dependencies when the event runs. Install Deno in an earlier workflow step to enable sandbox checks for deep review. There is no npm, PyPI, crates.io, or Go registry publication in this release.
 
 ## Test and troubleshoot
 
@@ -60,4 +60,4 @@ pnpm test
 go test ./...
 ```
 
-If a nonempty review reports a missing model API key, set the key for the model selected by `MAIN_MODEL`. See [review behavior](review/README.md) and [the release notes](_plan_docs/releases/v0.7.0.md).
+If a nonempty review reports a missing model API key, set the key for the model selected by `MAIN_MODEL`. See [review behavior](review/README.md) and [the release notes](_plan_docs/releases/v0.8.0.md).

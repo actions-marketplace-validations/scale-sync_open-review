@@ -11,7 +11,6 @@ import {
   loadRepoConfigFromGitHub,
   parseDiff,
   runGoReview,
-  runRLM,
 } from '@openreview/core';
 import type { PRContext } from '@openreview/core';
 
@@ -80,14 +79,6 @@ export async function handleComment(context: Context): Promise<void> {
       const prMeta = await client.getPR(prNumber);
       const files = await client.getPRFiles(prNumber);
       const diff = await client.getPRDiff(prNumber);
-      const parsedDiffs = parseDiff(diff);
-
-      const snapshot = new SnapshotBuilder({
-        client,
-        headRef: prMeta.head.sha,
-        diffs: parsedDiffs,
-      });
-
       const { instructions } = await loadRepoConfigFromGitHub(client, prMeta.head.sha);
 
       const prContext: PRContext = {
@@ -107,13 +98,22 @@ export async function handleComment(context: Context): Promise<void> {
         learnings: [],
       };
 
-      const findings = await runRLM(prContext, snapshot, (event) => {
-        core.info(`[RLM] ${event.type} iter=${event.iteration}: ${event.message.slice(0, 100)}`);
-      });
-
-      if (findings.length > 0) {
-        await poster.postReview(prNumber, findings);
+      const result = await runGoReview(prContext, files, 100, 'deep');
+      for (const event of result.audit ?? []) {
+        core.info(`[Deep] ${event.stage}: ${event.status}`);
       }
+      if (result.status === 'failed') throw new Error(result.error || 'Deep review failed');
+      if (result.status === 'empty' || result.status === 'skipped') {
+        await poster.postAcknowledgement(prNumber, '[INFO] **open-review** — No reviewable files.');
+        return;
+      }
+      const findings = result.findings;
+      await poster.postReviewResults(
+        prNumber,
+        prContext,
+        findings,
+        result.summary ?? buildFastReviewSummary([], 0, 0),
+      );
 
       await poster.postAcknowledgement(
         prNumber,
@@ -162,6 +162,9 @@ export async function handleComment(context: Context): Promise<void> {
       };
 
       const result = await runGoReview(prContext, files);
+      for (const event of result.audit ?? []) {
+        core.info(`Review audit: ${event.stage} ${event.status}`);
+      }
       if (result.status === 'failed') throw new Error(result.error || 'Go review failed');
       if (result.status === 'empty' || result.status === 'skipped') {
         await poster.postAcknowledgement(

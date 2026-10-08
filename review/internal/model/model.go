@@ -33,6 +33,8 @@ type Request struct {
 	Files           []string        `json:"files"`
 	Title           string          `json:"title,omitempty"`
 	Instructions    string          `json:"instructions,omitempty"`
+	ReviewKind      string          `json:"reviewKind,omitempty"`
+	WorktreeRoot    string          `json:"worktreeRoot,omitempty"`
 	Changes         []diff.Change   `json:"changes,omitempty"`
 	Coverage        []CoverageEntry `json:"coverage,omitempty"`
 }
@@ -48,6 +50,7 @@ type Finding struct {
 	Explanation  string     `json:"explanation"`
 	SuggestedFix string     `json:"suggestedFix,omitempty"`
 	Source       string     `json:"source"`
+	LinterName   string     `json:"linterName,omitempty"`
 	Citations    []Citation `json:"citations"`
 }
 
@@ -63,6 +66,12 @@ type ReviewResponse struct {
 	Trace    json.RawMessage   `json:"trace"`
 }
 
+type AuditEvent struct {
+	Stage   string `json:"stage"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+}
+
 type Result struct {
 	ContractVersion int               `json:"contractVersion"`
 	Status          string            `json:"status"`
@@ -71,5 +80,6 @@ type Result struct {
 	Findings        []json.RawMessage `json:"findings"`
 	Summary         json.RawMessage   `json:"summary,omitempty"`
 	Trace           json.RawMessage   `json:"trace,omitempty"`
+	Audit           []AuditEvent      `json:"audit,omitempty"`
 	Error           string            `json:"error,omitempty"`
 }
