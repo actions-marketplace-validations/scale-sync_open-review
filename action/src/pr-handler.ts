@@ -92,6 +92,14 @@ export async function handlePullRequest(context: Context): Promise<void> {
       );
     }
     if (result.status === 'failed') throw new Error(result.error || 'Go review failed');
+    if (result.status === 'partial') {
+      await poster.postAcknowledgement(
+        prNumber,
+        '[WARN] **open-review** — Review stopped at its token or time limit. Partial findings were not posted.',
+      );
+      core.setFailed('Review was partial');
+      return;
+    }
     if (result.status === 'empty' || result.status === 'skipped') {
       await poster.postAcknowledgement(
         prNumber,
@@ -128,6 +136,13 @@ function injectInputsToEnv(): void {
     ['anthropic-api-key', 'ANTHROPIC_API_KEY'],
     ['gemini-api-key', 'GEMINI_API_KEY'],
     ['main-model', 'MAIN_MODEL'],
+    ['provider', 'OPEN_REVIEW_PROVIDER'],
+    ['base-url', 'OPEN_REVIEW_BASE_URL'],
+    ['prompt-tokens', 'OPEN_REVIEW_PROMPT_TOKENS'],
+    ['output-tokens', 'OPEN_REVIEW_OUTPUT_TOKENS'],
+    ['total-tokens', 'OPEN_REVIEW_TOTAL_TOKENS'],
+    ['request-seconds', 'OPEN_REVIEW_REQUEST_SECONDS'],
+    ['group-seconds', 'OPEN_REVIEW_GROUP_SECONDS'],
     ['sub-model', 'SUB_MODEL'],
     ['max-files', 'MAX_FILES'],
     ['review-drafts', 'REVIEW_DRAFTS'],

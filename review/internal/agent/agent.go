@@ -62,9 +62,16 @@ func Run(ctx context.Context, req model.Request, reviewer Reviewer) (model.Resul
 		}
 	}
 	result.Status = "complete"
+	if response.Partial {
+		result.Status = "partial"
+	}
 	for i := range result.Coverage {
 		if result.Coverage[i].State == "selected" {
-			result.Coverage[i].State = "reviewed"
+			if response.Partial {
+				result.Coverage[i].State = "partial"
+			} else {
+				result.Coverage[i].State = "reviewed"
+			}
 		}
 	}
 	result.Findings = response.Findings

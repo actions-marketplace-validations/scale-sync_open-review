@@ -92455,7 +92455,7 @@ const hex_table = (() => {
 	for (let i = 0; i < 256; ++i) array.push("%" + ((i < 16 ? "0" : "") + i.toString(16)).toUpperCase());
 	return array;
 })();
-const limit = 1024;
+const limit$1 = 1024;
 const encode = (str, _defaultEncoder, charset, _kind, format) => {
 	if (str.length === 0) return str;
 	let string = str;
@@ -92465,8 +92465,8 @@ const encode = (str, _defaultEncoder, charset, _kind, format) => {
 		return "%26%23" + parseInt($0.slice(2), 16) + "%3B";
 	});
 	let out = "";
-	for (let j = 0; j < string.length; j += limit) {
-		const segment = string.length >= limit ? string.slice(j, j + limit) : string;
+	for (let j = 0; j < string.length; j += limit$1) {
+		const segment = string.length >= limit$1 ? string.slice(j, j + limit$1) : string;
 		const arr = [];
 		for (let i = 0; i < segment.length; ++i) {
 			let c = segment.charCodeAt(i);
@@ -151328,7 +151328,12 @@ function extractDiffForFiles(rawDiff, files) {
 	}
 	return kept.join("");
 }
-function toGoRequest(pr, files, reviewKind = "fast") {
+function limit(value, key) {
+	const selected = value ?? (process.env[key] ? Number(process.env[key]) : 0);
+	if (!Number.isSafeInteger(selected) || selected < 0) throw new Error(`${key} must be a nonnegative integer`);
+	return selected;
+}
+function toGoRequest(pr, files, reviewKind = "fast", options = {}) {
 	return {
 		contractVersion: 2,
 		mode: "branch",
@@ -151338,6 +151343,18 @@ function toGoRequest(pr, files, reviewKind = "fast") {
 		title: pr.metadata.title,
 		instructions: pr.instructions,
 		reviewKind,
+		model: {
+			provider: options.provider || process.env.OPEN_REVIEW_PROVIDER || "",
+			name: options.model || process.env.MAIN_MODEL || "",
+			baseUrl: options.baseUrl || process.env.OPEN_REVIEW_BASE_URL || ""
+		},
+		limits: {
+			promptTokens: limit(options.promptTokens, "OPEN_REVIEW_PROMPT_TOKENS"),
+			outputTokens: limit(options.outputTokens, "OPEN_REVIEW_OUTPUT_TOKENS"),
+			totalTokens: limit(options.totalTokens, "OPEN_REVIEW_TOTAL_TOKENS"),
+			requestSeconds: limit(options.requestSeconds, "OPEN_REVIEW_REQUEST_SECONDS"),
+			groupSeconds: limit(options.groupSeconds, "OPEN_REVIEW_GROUP_SECONDS")
+		},
 		worktreeRoot: process.env.GITHUB_WORKSPACE || process.cwd(),
 		diff: "",
 		files: [],
@@ -151359,7 +151376,7 @@ function sourceRoot() {
 	}
 	throw new Error("Go review source unavailable; set OPEN_REVIEW_BIN to a built open-review executable");
 }
-async function runGoReview(pr, files, maxFiles = 100, reviewKind = "fast") {
+async function runGoReview(pr, files, maxFiles = 100, reviewKind = "fast", options = {}) {
 	if (!Number.isSafeInteger(maxFiles) || maxFiles < 1) throw new Error("max-files must be a positive integer");
 	const bundledAction = dirname(fileURLToPath(import.meta.url)).endsWith(join("action", "dist"));
 	if (bundledAction && (process.platform !== "linux" || process.arch !== "x64")) throw new Error("This Action requires a Linux x64 runner");
@@ -151379,7 +151396,7 @@ async function runGoReview(pr, files, maxFiles = 100, reviewKind = "fast") {
 		String(maxFiles)
 	];
 	const cwd = binary ? process.cwd() : root;
-	const request = JSON.stringify(toGoRequest(pr, files, reviewKind));
+	const request = JSON.stringify(toGoRequest(pr, files, reviewKind, options));
 	if (Buffer.byteLength(request) > 1e7) throw new Error("Review request exceeds 10 MB");
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
@@ -151831,6 +151848,11 @@ async function handleComment(context) {
 			const result = await runGoReview(prContext, files, 100, "deep");
 			for (const event of result.audit ?? []) info(`[Deep] ${event.stage}: ${event.status}`);
 			if (result.status === "failed") throw new Error(result.error || "Deep review failed");
+			if (result.status === "partial") {
+				await poster.postAcknowledgement(prNumber, "[WARN] **open-review** — Deep review stopped at its token or time limit. Partial findings were not posted.");
+				setFailed("Deep review was partial");
+				return;
+			}
 			if (result.status === "empty" || result.status === "skipped") {
 				await poster.postAcknowledgement(prNumber, "[INFO] **open-review** — No reviewable files.");
 				return;
@@ -151872,6 +151894,11 @@ async function handleComment(context) {
 			const result = await runGoReview(prContext, files);
 			for (const event of result.audit ?? []) info(`Review audit: ${event.stage} ${event.status}`);
 			if (result.status === "failed") throw new Error(result.error || "Go review failed");
+			if (result.status === "partial") {
+				await poster.postAcknowledgement(prNumber, "[WARN] **open-review** — Review stopped at its token or time limit. Partial findings were not posted.");
+				setFailed("Review was partial");
+				return;
+			}
 			if (result.status === "empty" || result.status === "skipped") {
 				await poster.postAcknowledgement(prNumber, "[INFO] **open-review** — No reviewable files in this PR.");
 				return;
@@ -152031,6 +152058,11 @@ async function handlePullRequest(context) {
 		for (const entry of result.coverage) info(`Review coverage: ${entry.state} ${entry.path}${entry.reason ? ` (${entry.reason})` : ""}`);
 		for (const event of result.audit ?? []) info(`Review audit: ${event.stage} ${event.status}${event.message ? ` (${event.message})` : ""}`);
 		if (result.status === "failed") throw new Error(result.error || "Go review failed");
+		if (result.status === "partial") {
+			await poster.postAcknowledgement(prNumber, "[WARN] **open-review** — Review stopped at its token or time limit. Partial findings were not posted.");
+			setFailed("Review was partial");
+			return;
+		}
 		if (result.status === "empty" || result.status === "skipped") {
 			await poster.postAcknowledgement(prNumber, "[INFO] **open-review** — No reviewable files in this PR. See the Action log for coverage.");
 			return;
@@ -152054,6 +152086,13 @@ function injectInputsToEnv() {
 		["anthropic-api-key", "ANTHROPIC_API_KEY"],
 		["gemini-api-key", "GEMINI_API_KEY"],
 		["main-model", "MAIN_MODEL"],
+		["provider", "OPEN_REVIEW_PROVIDER"],
+		["base-url", "OPEN_REVIEW_BASE_URL"],
+		["prompt-tokens", "OPEN_REVIEW_PROMPT_TOKENS"],
+		["output-tokens", "OPEN_REVIEW_OUTPUT_TOKENS"],
+		["total-tokens", "OPEN_REVIEW_TOTAL_TOKENS"],
+		["request-seconds", "OPEN_REVIEW_REQUEST_SECONDS"],
+		["group-seconds", "OPEN_REVIEW_GROUP_SECONDS"],
 		["sub-model", "SUB_MODEL"],
 		["max-files", "MAX_FILES"],
 		["review-drafts", "REVIEW_DRAFTS"]

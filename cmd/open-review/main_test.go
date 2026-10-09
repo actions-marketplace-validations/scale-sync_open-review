@@ -117,3 +117,113 @@ func TestExternalReviewAppliesGoSelection(t *testing.T) {
 		t.Fatalf("coverage = %+v", result.Coverage)
 	}
 }
+
+func TestProviderSetupAndConnectivityHideKey(t *testing.T) {
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer private-test-key" {
+			t.Errorf("missing authorization")
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`))
+	}))
+	defer server.Close()
+	var output bytes.Buffer
+	if err := runConfigInput(context.Background(), []string{"set", "--provider", "openai", "--model", "custom-model", "--base-url", server.URL, "--api-key-stdin"}, strings.NewReader("private-test-key\n"), &output); err != nil {
+		t.Fatal(err)
+	}
+	output.Reset()
+	if err := runConfigInput(context.Background(), []string{"show"}, strings.NewReader(""), &output); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(output.String(), "private-test-key") || !strings.Contains(output.String(), "Saved key: true") {
+		t.Fatalf("show leaked or hid state: %s", output.String())
+	}
+	output.Reset()
+	if err := runConfigInput(context.Background(), []string{"test"}, strings.NewReader(""), &output); err != nil || !strings.Contains(output.String(), "Connected to openai") {
+		t.Fatalf("connectivity: %s, %v", output.String(), err)
+	}
+	output.Reset()
+	if err := runConfigInput(context.Background(), []string{"setup"}, strings.NewReader("openai\ncustom-model\n"), &output); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "Provider (") || strings.Contains(output.String(), "private-test-key") {
+		t.Fatalf("setup output: %s", output.String())
+	}
+}
+
+func TestOutputFileUntouchedOnInterruptedModelResponse(t *testing.T) {
+	repo := t.TempDir()
+	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v: %s", err, out)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "main.go"), []byte("package main\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		_, _ = conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Length: 999\r\n\r\n{"))
+		_ = conn.Close()
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	path := filepath.Join(t.TempDir(), "report.json")
+	if err := os.WriteFile(path, []byte("previous report"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	err := run(context.Background(), []string{"review", "--repo", repo, "--output", "json", "--output-file", path, "--quiet"}, &output)
+	contents, readErr := os.ReadFile(path)
+	if err == nil || readErr != nil || string(contents) != "previous report" || output.Len() != 0 {
+		t.Fatalf("err = %v, file = %q, stdout = %q", err, contents, output.String())
+	}
+}
+
+func TestOutputFileIsAtomicAndPrivate(t *testing.T) {
+	repo := t.TempDir()
+	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v: %s", err, out)
+	}
+	path := filepath.Join(t.TempDir(), "report.json")
+	var stdout bytes.Buffer
+	if err := run(context.Background(), []string{"review", "--repo", repo, "--output", "json", "--output-file", path, "--quiet"}, &stdout); err != nil {
+		t.Fatal(err)
+	}
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil || info.Mode().Perm() != 0o600 || stdout.Len() != 0 || !strings.Contains(string(contents), `"status": "empty"`) {
+		t.Fatalf("output = %q, mode = %v, stdout = %q, err = %v", contents, info.Mode().Perm(), stdout.String(), err)
+	}
+}
+
+func TestCompletionAndPartialJSONStatus(t *testing.T) {
+	var completion bytes.Buffer
+	if err := run(context.Background(), []string{"completion", "bash"}, &completion); err != nil || !strings.Contains(completion.String(), "--total-tokens") {
+		t.Fatalf("completion = %s, %v", completion.String(), err)
+	}
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	request := `{"contractVersion":2,"mode":"branch","repoRoot":"org/repo","files":["main.go"],"diff":"diff --git a/main.go b/main.go\n@@ -0,0 +1 @@\n+bad\n","changes":[{"path":"main.go","status":"modified","binary":false,"patch":"diff --git a/main.go b/main.go\n@@ -0,0 +1 @@\n+bad\n","hunks":[]}],"limits":{"totalTokens":1}}`
+	var output bytes.Buffer
+	if err := runJSON(context.Background(), nil, strings.NewReader(request), &output); err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		Status string `json:"status"`
+		Usage  struct {
+			TotalTokens int `json:"totalTokens"`
+		} `json:"usage"`
+	}
+	if err := json.Unmarshal(output.Bytes(), &result); err != nil || result.Status != "partial" || result.Usage.TotalTokens != 0 {
+		t.Fatalf("result = %s, %v", output.String(), err)
+	}
+}

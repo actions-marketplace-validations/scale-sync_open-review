@@ -11,17 +11,24 @@ const SEVERITY_ICONS: Record<FindingSeverity, string> = {
   informational: '[INFO]',
 };
 
-export function formatText(findings: ReviewFinding[], summary: ReviewSummary): string {
+export function formatText(
+  findings: ReviewFinding[],
+  summary: ReviewSummary,
+  status = 'complete',
+): string {
   const lines: string[] = [];
 
   lines.push(
     `open-review — ${summary.mode} mode | ${summary.filesReviewed} files | ${summary.duration}`,
   );
   lines.push(`Findings: ${summary.totalFindings}`);
+  if (status === 'partial') lines.push('Status: partial — token or time limit reached.');
   lines.push('');
 
   if (findings.length === 0) {
-    lines.push('No issues found.');
+    lines.push(
+      status === 'partial' ? 'No validated findings before the limit.' : 'No issues found.',
+    );
     return lines.join('\n');
   }
 
@@ -45,11 +52,19 @@ export function formatText(findings: ReviewFinding[], summary: ReviewSummary): s
 /*  Markdown output                                                    */
 /* ------------------------------------------------------------------ */
 
-export function formatMarkdown(findings: ReviewFinding[], summary: ReviewSummary): string {
+export function formatMarkdown(
+  findings: ReviewFinding[],
+  summary: ReviewSummary,
+  status = 'complete',
+): string {
   const lines: string[] = [];
 
   lines.push(`## open-review Summary`);
   lines.push('');
+  if (status === 'partial') {
+    lines.push('**Status:** partial — token or time limit reached.');
+    lines.push('');
+  }
   lines.push(
     `**Files reviewed:** ${summary.filesReviewed} | **Duration:** ${summary.duration} | **Mode:** ${summary.mode}`,
   );
@@ -63,7 +78,9 @@ export function formatMarkdown(findings: ReviewFinding[], summary: ReviewSummary
   lines.push('');
 
   if (findings.length === 0) {
-    lines.push('No issues found.');
+    lines.push(
+      status === 'partial' ? 'No validated findings before the limit.' : 'No issues found.',
+    );
     return lines.join('\n');
   }
 

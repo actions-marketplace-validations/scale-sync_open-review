@@ -35,8 +35,32 @@ type Request struct {
 	Instructions    string          `json:"instructions,omitempty"`
 	ReviewKind      string          `json:"reviewKind,omitempty"`
 	WorktreeRoot    string          `json:"worktreeRoot,omitempty"`
+	Model           ModelIdentity   `json:"model,omitempty"`
+	Limits          Limits          `json:"limits,omitempty"`
 	Changes         []diff.Change   `json:"changes,omitempty"`
 	Coverage        []CoverageEntry `json:"coverage,omitempty"`
+}
+
+type ModelIdentity struct {
+	Provider string `json:"provider,omitempty"`
+	Name     string `json:"name,omitempty"`
+	BaseURL  string `json:"baseUrl,omitempty"`
+}
+
+type Limits struct {
+	PromptTokens   int `json:"promptTokens,omitempty"`
+	OutputTokens   int `json:"outputTokens,omitempty"`
+	TotalTokens    int `json:"totalTokens,omitempty"`
+	RequestSeconds int `json:"requestSeconds,omitempty"`
+	GroupSeconds   int `json:"groupSeconds,omitempty"`
+}
+
+type Usage struct {
+	PromptTokens int  `json:"promptTokens"`
+	OutputTokens int  `json:"outputTokens"`
+	TotalTokens  int  `json:"totalTokens"`
+	ModelCalls   int  `json:"modelCalls"`
+	Estimated    bool `json:"estimated"`
 }
 
 type Finding struct {
@@ -64,6 +88,7 @@ type ReviewResponse struct {
 	Findings []json.RawMessage `json:"findings"`
 	Summary  json.RawMessage   `json:"summary"`
 	Trace    json.RawMessage   `json:"trace"`
+	Partial  bool              `json:"-"`
 }
 
 type AuditEvent struct {
@@ -81,5 +106,6 @@ type Result struct {
 	Summary         json.RawMessage   `json:"summary,omitempty"`
 	Trace           json.RawMessage   `json:"trace,omitempty"`
 	Audit           []AuditEvent      `json:"audit,omitempty"`
+	Usage           Usage             `json:"usage"`
 	Error           string            `json:"error,omitempty"`
 }

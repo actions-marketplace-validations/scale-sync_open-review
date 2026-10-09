@@ -78,6 +78,12 @@ func TestCoverageAfterSuccessAndFailure(t *testing.T) {
 	if err != nil || success.Coverage[0].State != "reviewed" || success.Coverage[1].State != "partial" || success.Coverage[2].State != "skipped" {
 		t.Fatalf("success coverage = %+v, %v", success.Coverage, err)
 	}
+	partial, err := Run(context.Background(), req, func(context.Context, model.Request) (model.ReviewResponse, error) {
+		return model.ReviewResponse{Summary: json.RawMessage(`{"totalFindings":0}`), Partial: true}, nil
+	})
+	if err != nil || partial.Status != "partial" || partial.Coverage[0].State != "partial" {
+		t.Fatalf("partial coverage = %+v, %v", partial.Coverage, err)
+	}
 	failure, err := Run(context.Background(), req, func(context.Context, model.Request) (model.ReviewResponse, error) {
 		return model.ReviewResponse{}, errors.New("model unavailable")
 	})

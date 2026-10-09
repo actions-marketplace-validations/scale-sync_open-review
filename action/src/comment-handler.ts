@@ -103,6 +103,14 @@ export async function handleComment(context: Context): Promise<void> {
         core.info(`[Deep] ${event.stage}: ${event.status}`);
       }
       if (result.status === 'failed') throw new Error(result.error || 'Deep review failed');
+      if (result.status === 'partial') {
+        await poster.postAcknowledgement(
+          prNumber,
+          '[WARN] **open-review** — Deep review stopped at its token or time limit. Partial findings were not posted.',
+        );
+        core.setFailed('Deep review was partial');
+        return;
+      }
       if (result.status === 'empty' || result.status === 'skipped') {
         await poster.postAcknowledgement(prNumber, '[INFO] **open-review** — No reviewable files.');
         return;
@@ -166,6 +174,14 @@ export async function handleComment(context: Context): Promise<void> {
         core.info(`Review audit: ${event.stage} ${event.status}`);
       }
       if (result.status === 'failed') throw new Error(result.error || 'Go review failed');
+      if (result.status === 'partial') {
+        await poster.postAcknowledgement(
+          prNumber,
+          '[WARN] **open-review** — Review stopped at its token or time limit. Partial findings were not posted.',
+        );
+        core.setFailed('Review was partial');
+        return;
+      }
       if (result.status === 'empty' || result.status === 'skipped') {
         await poster.postAcknowledgement(
           prNumber,

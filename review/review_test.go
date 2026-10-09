@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/scale-sync/open-review/review/internal/diff"
+	"github.com/scale-sync/open-review/review/internal/model"
 )
 
 func TestGoReviewPreservesFullChanges(t *testing.T) {
@@ -95,6 +96,22 @@ func TestDeepReviewWithoutDenoRecordsUnverifiedPass(t *testing.T) {
 	t.Setenv("MAIN_MODEL", "gpt-4o")
 	result, err := Run(context.Background(), Request{ContractVersion: 2, ReviewKind: "deep", RepoRoot: "org/repo", Files: []string{"main.go"}, Diff: "diff --git a/main.go b/main.go\n+bad\n"})
 	if err != nil || result.Status != "complete" || len(result.Audit) != 1 || result.Audit[0].Status != "unavailable" {
+		t.Fatalf("result = %+v, err = %v", result, err)
+	}
+}
+
+func TestDeepReviewBudgetReturnsPartial(t *testing.T) {
+	t.Setenv("GITHUB_ACTIONS", "false")
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "deno"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	patch := "diff --git a/main.go b/main.go\n@@ -0,0 +1 @@\n+bad\n"
+	result, err := Run(context.Background(), Request{ContractVersion: 2, ReviewKind: "deep", RepoRoot: "org/repo", Files: []string{"main.go"}, Diff: patch, Limits: model.Limits{TotalTokens: 1}})
+	if err != nil || result.Status != "partial" || len(result.Audit) == 0 || result.Audit[0].Status != "partial" {
 		t.Fatalf("result = %+v, err = %v", result, err)
 	}
 }

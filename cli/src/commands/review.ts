@@ -1,16 +1,41 @@
+import { randomUUID } from 'node:crypto';
+import { rename, unlink, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+
 import {
   CommentPoster,
   GitHubClient,
   buildFastReviewSummary,
-  loadConfig,
   loadRepoConfigFromGitHub,
   runGoReview,
-  validateConfig,
 } from '@openreview/core';
 import type { PRContext, ReviewFinding, ReviewSummary } from '@openreview/core';
 import type { Command } from 'commander';
 
-import { formatJSON, formatMarkdown, formatText } from '../formatter.js';
+import { formatMarkdown, formatText } from '../formatter.js';
+
+function positive(value: string | undefined, name: string): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1)
+    throw new Error(`${name} must be a positive integer`);
+  return parsed;
+}
+
+async function writeResult(path: string | undefined, output: string): Promise<void> {
+  if (!path || path === '-') {
+    process.stdout.write(output);
+    return;
+  }
+  const temp = join(dirname(path), `.open-review-${randomUUID()}`);
+  try {
+    await writeFile(temp, output, { mode: 0o600, flag: 'wx' });
+    await rename(temp, path);
+  } catch (error) {
+    await unlink(temp).catch(() => undefined);
+    throw error;
+  }
+}
 
 export function registerReviewCommand(program: Command): void {
   program
@@ -20,17 +45,33 @@ export function registerReviewCommand(program: Command): void {
     .option('--mode <mode>', 'Review mode: fast or rlm', 'fast')
     .option('--output <format>', 'Output format: text, markdown, or json', 'text')
     .option('--model <model>', 'Override LLM model')
+    .option('--provider <provider>', 'Override model provider')
+    .option('--base-url <url>', 'Override provider endpoint')
+    .option('--prompt-tokens <n>', 'Maximum estimated prompt tokens per request')
+    .option('--output-tokens <n>', 'Maximum output tokens per request')
+    .option('--total-tokens <n>', 'Aggregate token budget')
+    .option('--request-seconds <n>', 'Per-request timeout')
+    .option('--group-seconds <n>', 'Review deadline')
+    .option('--output-file <path>', 'Write output atomically to a file')
     .option('--expert', 'Comprehensive SOLID/security/quality review')
     .option('--submit', 'Post findings as GitHub PR comment')
     .option('--quiet', 'Suppress progress output')
     .action(async (opts) => {
       try {
-        const cfg = loadConfig();
-        validateConfig(cfg);
-
-        if (opts.model) {
-          (cfg as unknown as Record<string, unknown>).mainModel = opts.model;
-        }
+        if (opts.mode !== 'fast' && opts.mode !== 'rlm')
+          throw new Error('mode must be fast or rlm');
+        if (!['text', 'markdown', 'json'].includes(opts.output))
+          throw new Error('output must be text, markdown, or json');
+        const modelOptions = {
+          provider: opts.provider as string | undefined,
+          model: opts.model as string | undefined,
+          baseUrl: opts.baseUrl as string | undefined,
+          promptTokens: positive(opts.promptTokens, 'prompt-tokens'),
+          outputTokens: positive(opts.outputTokens, 'output-tokens'),
+          totalTokens: positive(opts.totalTokens, 'total-tokens'),
+          requestSeconds: positive(opts.requestSeconds, 'request-seconds'),
+          groupSeconds: positive(opts.groupSeconds, 'group-seconds'),
+        };
 
         const { client, prNumber } = GitHubClient.fromPRUrl(opts.url);
 
@@ -72,40 +113,21 @@ export function registerReviewCommand(program: Command): void {
           learnings: [],
         };
 
-        let findings: ReviewFinding[];
-        let summary: ReviewSummary;
-        let noReview = false;
-
-        if (opts.mode === 'rlm') {
-          if (!opts.quiet) {
-            process.stderr.write('Running RLM deep review...\n');
-          }
-
-          const result = await runGoReview(prContext, files, 100, 'deep');
-          if (result.status === 'failed') throw new Error(result.error || 'Deep review failed');
-          noReview = result.status === 'empty' || result.status === 'skipped';
-          findings = result.findings;
-          summary = result.summary ?? buildFastReviewSummary([], 0, 0);
-          if (!opts.quiet) {
-            for (const event of result.audit ?? []) {
-              process.stderr.write(`  [${event.stage}] ${event.status}\n`);
-            }
-          }
-        } else {
-          if (!opts.quiet) {
-            process.stderr.write('Running fast review...\n');
-          }
-
-          const result = await runGoReview(prContext, files);
-          if (!opts.quiet) {
-            for (const event of result.audit ?? [])
-              process.stderr.write(`  [${event.stage}] ${event.status}\n`);
-          }
-          if (result.status === 'failed') throw new Error(result.error || 'Go review failed');
-          noReview = result.status === 'empty' || result.status === 'skipped';
-          findings = result.findings;
-          summary = result.summary ?? buildFastReviewSummary([], 0, 0);
-        }
+        if (!opts.quiet) process.stderr.write(`Running ${opts.mode} review...\n`);
+        const result = await runGoReview(
+          prContext,
+          files,
+          100,
+          opts.mode === 'rlm' ? 'deep' : 'fast',
+          modelOptions,
+        );
+        if (result.status === 'failed') throw new Error(result.error || 'Go review failed');
+        if (!opts.quiet)
+          for (const event of result.audit ?? [])
+            process.stderr.write(`  [${event.stage}] ${event.status}\n`);
+        const noReview = result.status === 'empty' || result.status === 'skipped';
+        const findings: ReviewFinding[] = result.findings;
+        const summary: ReviewSummary = result.summary ?? buildFastReviewSummary([], 0, 0);
 
         if (reviewBuddyConfig.finishing_touches) {
           summary.finishingTouches = reviewBuddyConfig.finishing_touches;
@@ -115,20 +137,30 @@ export function registerReviewCommand(program: Command): void {
         const format = opts.output as string;
         let output: string;
         if (format === 'json') {
-          output = formatJSON(findings, summary);
+          output = JSON.stringify(
+            {
+              status: result.status,
+              summary,
+              findings,
+              coverage: result.coverage,
+              usage: result.usage ?? null,
+            },
+            null,
+            2,
+          );
         } else if (format === 'markdown') {
-          output = formatMarkdown(findings, summary);
+          output = formatMarkdown(findings, summary, result.status);
         } else {
-          output = formatText(findings, summary);
+          output = formatText(findings, summary, result.status);
         }
 
-        process.stdout.write(output + '\n');
+        await writeResult(opts.outputFile as string | undefined, output + '\n');
 
         // Post to GitHub if --submit flag is set
-        if (opts.submit && noReview) {
+        if (opts.submit && noReview && !opts.quiet) {
           process.stderr.write('No reviewable files; nothing posted.\n');
         }
-        if (opts.submit && !noReview) {
+        if (opts.submit && !noReview && result.status === 'complete') {
           if (!opts.quiet) {
             process.stderr.write('Posting review to GitHub...\n');
           }
@@ -141,9 +173,14 @@ export function registerReviewCommand(program: Command): void {
             summary,
           );
 
-          process.stderr.write(
-            `✅ Review posted on PR #${prNumber} (${finalSummary.totalFindings} open, ${finalSummary.resolvedCount ?? 0} resolved)\n`,
-          );
+          if (!opts.quiet)
+            process.stderr.write(
+              `Review posted on PR #${prNumber} (${finalSummary.totalFindings} open, ${finalSummary.resolvedCount ?? 0} resolved)\n`,
+            );
+        }
+        if (result.status === 'partial') {
+          process.exitCode = 2;
+          if (!opts.quiet) process.stderr.write('Review is partial; findings were not posted.\n');
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

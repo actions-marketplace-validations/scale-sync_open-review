@@ -63,6 +63,24 @@
         "instructions": { "type": "string" },
         "reviewKind": { "enum": ["fast", "deep"] },
         "worktreeRoot": { "type": "string" },
+        "model": {
+          "type": "object",
+          "properties": {
+            "provider": { "enum": ["openai", "anthropic", "gemini"] },
+            "name": { "type": "string" },
+            "baseUrl": { "type": "string" }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "promptTokens": { "type": "integer", "minimum": 0 },
+            "outputTokens": { "type": "integer", "minimum": 0 },
+            "totalTokens": { "type": "integer", "minimum": 0 },
+            "requestSeconds": { "type": "integer", "minimum": 0 },
+            "groupSeconds": { "type": "integer", "minimum": 0 }
+          }
+        },
         "changes": { "type": "array", "items": { "$ref": "#/$defs/change" } },
         "coverage": { "type": "array", "items": { "$ref": "#/$defs/coverage" } }
       }
@@ -72,13 +90,24 @@
   "required": ["contractVersion", "status", "request", "coverage", "findings"],
   "properties": {
     "contractVersion": { "const": 2 },
-    "status": { "enum": ["empty", "skipped", "complete", "failed"] },
+    "status": { "enum": ["empty", "skipped", "complete", "partial", "failed"] },
     "request": { "$ref": "#/$defs/request" },
     "coverage": { "type": "array", "items": { "$ref": "#/$defs/coverage" } },
     "findings": { "type": "array", "items": { "type": "object" } },
     "summary": { "type": "object" },
     "trace": { "type": "object" },
     "audit": { "type": "array", "items": { "type": "object" } },
+    "usage": {
+      "type": "object",
+      "required": ["promptTokens", "outputTokens", "totalTokens", "modelCalls", "estimated"],
+      "properties": {
+        "promptTokens": { "type": "integer", "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "totalTokens": { "type": "integer", "minimum": 0 },
+        "modelCalls": { "type": "integer", "minimum": 0 },
+        "estimated": { "type": "boolean" }
+      }
+    },
     "error": { "type": "string" }
   }
 }

@@ -22,7 +22,27 @@ inputs:
   main-model:
     description: 'Primary LLM model for review and chat'
     required: false
-    default: 'gpt-4o'
+  provider:
+    description: 'Model provider: openai, anthropic, or gemini'
+    required: false
+  base-url:
+    description: 'Custom endpoint URL for the selected provider'
+    required: false
+  prompt-tokens:
+    description: 'Estimated prompt token ceiling per request'
+    required: false
+  output-tokens:
+    description: 'Output token ceiling per request'
+    required: false
+  total-tokens:
+    description: 'Aggregate token budget'
+    required: false
+  request-seconds:
+    description: 'Per-request timeout in seconds'
+    required: false
+  group-seconds:
+    description: 'Review deadline in seconds'
+    required: false
   sub-model:
     description: 'Secondary LLM model for summarization and suggestions'
     required: false

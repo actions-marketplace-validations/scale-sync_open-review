@@ -3,6 +3,7 @@ package deep
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,6 +22,10 @@ func Run(ctx context.Context, req model.Request) (model.Result, error) {
 			for iteration := 1; iteration <= 4; iteration++ {
 				code, done, err := llm.Investigate(ctx, selected, history)
 				if err != nil {
+					if errors.Is(err, llm.ErrBudget) || errors.Is(err, context.DeadlineExceeded) {
+						audit = append(audit, model.AuditEvent{Stage: "model", Status: "partial", Message: "token or time limit reached"})
+						return model.ReviewResponse{Findings: []json.RawMessage{}, Summary: json.RawMessage(`{"mode":"rlm","filesReviewed":0,"duration":"0s","totalFindings":0,"findingsBySeverity":{"severe":0,"non-severe":0,"investigate":0,"informational":0}}`), Trace: json.RawMessage(`{"path":"go-deep"}`), Partial: true}, nil
+					}
 					return model.ReviewResponse{}, err
 				}
 				if done || code == "" {

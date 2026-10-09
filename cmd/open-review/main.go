@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,8 @@ import (
 	"github.com/scale-sync/open-review/review"
 )
 
+var errPartial = errors.New("review is partial")
+
 type patterns []string
 
 func (p *patterns) String() string { return strings.Join(*p, ",") }
@@ -24,16 +27,25 @@ func (p *patterns) Set(value string) error {
 func main() {
 	if err := run(context.Background(), os.Args[1:], os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
+		if errors.Is(err, errPartial) {
+			os.Exit(2)
+		}
 		os.Exit(1)
 	}
 }
 
 func run(ctx context.Context, args []string, output io.Writer) error {
+	if len(args) > 0 && args[0] == "config" {
+		return runConfig(ctx, args[1:], output)
+	}
+	if len(args) > 0 && args[0] == "completion" {
+		return runCompletion(args[1:], output)
+	}
 	if len(args) > 0 && args[0] == "review-json" {
 		return runJSON(ctx, args[1:], os.Stdin, output)
 	}
 	if len(args) == 0 || args[0] != "review" {
-		return errors.New("usage: open-review review [--repo PATH] [--workspace | --base REF --head REF | --commit REF] [--deep] [--include GLOB] [--exclude GLOB] [--preview] [--output text|json]")
+		return errors.New("usage: open-review review|review-json|config|completion")
 	}
 	flags := flag.NewFlagSet("review", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -43,6 +55,16 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	head := flags.String("head", "", "head branch or commit")
 	commit := flags.String("commit", "", "single commit")
 	format := flags.String("output", "text", "text or json")
+	outputFile := flags.String("output-file", "", "write output atomically to a file")
+	quiet := flags.Bool("quiet", false, "suppress progress messages")
+	provider := flags.String("provider", "", "model provider")
+	modelName := flags.String("model", "", "model name")
+	baseURL := flags.String("base-url", "", "provider endpoint")
+	promptTokens := flags.Int("prompt-tokens", 0, "maximum estimated prompt tokens per request")
+	outputTokens := flags.Int("output-tokens", 0, "maximum output tokens per request")
+	totalTokens := flags.Int("total-tokens", 0, "aggregate token budget")
+	requestSeconds := flags.Int("request-seconds", 0, "per-request timeout")
+	groupSeconds := flags.Int("group-seconds", 0, "review deadline")
 	preview := flags.Bool("preview", false, "show selected and skipped files without calling a model")
 	deep := flags.Bool("deep", false, "run bounded deep verification before review")
 	maxFiles := flags.Int("max-files", 100, "maximum selected files")
@@ -79,17 +101,24 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if *deep {
 		req.ReviewKind = "deep"
 	}
+	req.Model = review.ModelIdentity{Provider: *provider, Name: *modelName, BaseURL: *baseURL}
+	req.Limits = review.Limits{PromptTokens: *promptTokens, OutputTokens: *outputTokens, TotalTokens: *totalTokens, RequestSeconds: *requestSeconds, GroupSeconds: *groupSeconds}
+	var rendered bytes.Buffer
 	if *preview {
 		if *format == "json" {
-			return json.NewEncoder(output).Encode(struct {
+			if err := json.NewEncoder(&rendered).Encode(struct {
 				Mode     string `json:"mode"`
 				RepoRoot string `json:"repoRoot"`
 				Coverage any    `json:"coverage"`
-			}{req.Mode, req.RepoRoot, req.Coverage})
+			}{req.Mode, req.RepoRoot, req.Coverage}); err != nil {
+				return err
+			}
+		} else if err := printCoverage(&rendered, req.Coverage); err != nil {
+			return err
 		}
-		return printCoverage(output, req.Coverage)
+		return writeOutput(output, *outputFile, rendered.Bytes())
 	}
-	if len(req.Coverage) > 0 {
+	if !*quiet && len(req.Coverage) > 0 {
 		fmt.Fprintln(os.Stderr, "Review scope:")
 		_ = printCoverage(os.Stderr, req.Coverage)
 	}
@@ -97,24 +126,36 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if reviewErr != nil && result.Status == "" {
 		return reviewErr
 	}
+	if reviewErr != nil && *outputFile != "" {
+		return reviewErr
+	}
 	if *format == "json" {
-		encoder := json.NewEncoder(output)
+		encoder := json.NewEncoder(&rendered)
 		encoder.SetIndent("", "  ")
 		if err := encoder.Encode(result); err != nil {
 			return err
 		}
-		return reviewErr
+		if err := writeOutput(output, *outputFile, rendered.Bytes()); err != nil {
+			return err
+		}
+		if reviewErr != nil {
+			return reviewErr
+		}
+		if result.Status == "partial" {
+			return errPartial
+		}
+		return nil
 	}
-	_, err = fmt.Fprintf(output, "open-review: %s review (%s)\nRepository: %s\n", req.Mode, result.Status, req.RepoRoot)
+	_, err = fmt.Fprintf(&rendered, "open-review: %s review (%s)\nRepository: %s\n", req.Mode, result.Status, req.RepoRoot)
 	if err != nil {
 		return err
 	}
 	if req.BaseRef != "" {
-		fmt.Fprintf(output, "Base: %s (%s)\nHead: %s (%s)\nMerge base: %s\n", req.BaseRef, req.BaseSHA, req.HeadRef, req.HeadSHA, req.MergeBaseSHA)
+		fmt.Fprintf(&rendered, "Base: %s (%s)\nHead: %s (%s)\nMerge base: %s\n", req.BaseRef, req.BaseSHA, req.HeadRef, req.HeadSHA, req.MergeBaseSHA)
 	} else if req.CommitSHA != "" {
-		fmt.Fprintf(output, "Commit: %s\nCompared with: %s\n", req.CommitSHA, req.BaseSHA)
+		fmt.Fprintf(&rendered, "Commit: %s\nCompared with: %s\n", req.CommitSHA, req.BaseSHA)
 	}
-	fmt.Fprintf(output, "Changed files: %d\nSelected files: %d\nFindings: %d\n", len(req.Changes), len(req.Files), len(result.Findings))
+	fmt.Fprintf(&rendered, "Changed files: %d\nSelected files: %d\nFindings: %d\nTokens: %d prompt + %d output = %d total (%d calls)\n", len(req.Changes), len(req.Files), len(result.Findings), result.Usage.PromptTokens, result.Usage.OutputTokens, result.Usage.TotalTokens, result.Usage.ModelCalls)
 	for _, raw := range result.Findings {
 		var finding struct {
 			Severity  string `json:"severity"`
@@ -125,15 +166,26 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 		if err := json.Unmarshal(raw, &finding); err != nil {
 			return err
 		}
-		fmt.Fprintf(output, "- [%s] %s:%d %s\n", finding.Severity, finding.File, finding.StartLine, finding.Title)
+		fmt.Fprintf(&rendered, "- [%s] %s:%d %s\n", finding.Severity, finding.File, finding.StartLine, finding.Title)
 	}
-	if err := printCoverage(output, result.Coverage); err != nil {
+	if err := printCoverage(&rendered, result.Coverage); err != nil {
 		return err
 	}
 	for _, event := range result.Audit {
-		if _, err := fmt.Fprintf(output, "  audit %s: %s\n", event.Stage, event.Status); err != nil { return err }
+		if _, err := fmt.Fprintf(&rendered, "  audit %s: %s\n", event.Stage, event.Status); err != nil {
+			return err
+		}
 	}
-	return reviewErr
+	if err := writeOutput(output, *outputFile, rendered.Bytes()); err != nil {
+		return err
+	}
+	if reviewErr != nil {
+		return reviewErr
+	}
+	if result.Status == "partial" {
+		return errPartial
+	}
+	return nil
 }
 
 func runJSON(ctx context.Context, args []string, input io.Reader, output io.Writer) error {
@@ -162,6 +214,9 @@ func runJSON(ctx context.Context, args []string, input io.Reader, output io.Writ
 		return err
 	}
 	result, reviewErr := review.Run(ctx, req)
+	if reviewErr != nil && result.Status == "" {
+		return reviewErr
+	}
 	if err := json.NewEncoder(output).Encode(result); err != nil {
 		return err
 	}

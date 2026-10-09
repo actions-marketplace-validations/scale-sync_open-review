@@ -31,6 +31,17 @@ type Options struct {
 type Request = model.Request
 type Result = model.Result
 type CoverageEntry = model.CoverageEntry
+type ModelIdentity = model.ModelIdentity
+type Limits = model.Limits
+type ProviderConfig = config.Provider
+
+func LoadProviderConfig() (ProviderConfig, error)   { return config.Load() }
+func SaveProviderConfig(value ProviderConfig) error { return config.Save(value) }
+func ProviderConfigPath() (string, error)           { return config.Path() }
+func ResolveProviderConfig(identity ModelIdentity) (ProviderConfig, error) {
+	return config.Resolve(identity)
+}
+func TestProvider(ctx context.Context, identity ModelIdentity) error { return llm.Check(ctx, identity) }
 
 func Prepare(ctx context.Context, opts Options) (Request, error) {
 	in, err := gitcmd.Prepare(ctx, gitcmd.Options{Repo: opts.Repo, Mode: opts.Mode, Base: opts.Base, Head: opts.Head, Commit: opts.Commit})
@@ -62,8 +73,12 @@ func Prepare(ctx context.Context, opts Options) (Request, error) {
 }
 
 func Run(ctx context.Context, req Request) (Result, error) {
+	ctx, cancel, usage, err := llm.WithSession(ctx, req.Limits)
+	if err != nil {
+		return Result{}, err
+	}
+	defer cancel()
 	var result Result
-	var err error
 	if req.ReviewKind == "deep" {
 		result, err = deep.Run(ctx, req)
 	} else if req.ReviewKind != "" && req.ReviewKind != "fast" {
@@ -71,7 +86,8 @@ func Run(ctx context.Context, req Request) (Result, error) {
 	} else {
 		result, err = agent.Run(ctx, req, llm.Review)
 	}
-	if err != nil || result.Status != "complete" {
+	result.Usage = usage()
+	if err != nil || (result.Status != "complete" && result.Status != "partial") {
 		return result, err
 	}
 	findings, audit := linter.Run(ctx, req, result.Findings)

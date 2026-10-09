@@ -3,9 +3,9 @@
 [![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Open-source, agentic code review tool. v0.8.0 runs fast and deep reviews in Go for local Git changes and GitHub pull requests, with visible file coverage and audit events. TypeScript 7 handles GitHub events, review state, and conversation.
+Open-source, agentic code review tool. v0.9.0 runs fast and deep reviews in Go for local Git changes and GitHub pull requests, with provider setup, bounded model use, and script-friendly results. TypeScript 7 handles GitHub events, review state, and conversation.
 
-## v0.8.0 from source
+## v0.9.0 from source
 
 Requires Go 1.23+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
 
@@ -20,9 +20,12 @@ go run ./cmd/open-review review --workspace --deep
 go run ./cmd/open-review review --workspace --include '**/*.go' --exclude 'vendor/**'
 go run ./cmd/open-review review --base main --head feature-branch
 go run ./cmd/open-review review --commit HEAD --output json
+go run ./cmd/open-review config setup
+go run ./cmd/open-review config test
+go run ./cmd/open-review review --workspace --model gpt-4o --total-tokens 10000 --output json --output-file review.json --quiet
 ```
 
-Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v0.8.0 release notes](_plan_docs/releases/v0.8.0.md).
+Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v0.9.0 release notes](_plan_docs/releases/v0.9.0.md).
 
 ## Current capabilities
 
@@ -30,6 +33,7 @@ Use `--repo PATH` to inspect another checkout. See [local review details](review
 - **Go deep review** — up to four investigation and sandbox cycles, followed by validated findings; without Deno, it records an unverified reasoning pass.
 - **Linter fusion** — available ESLint, Ruff, Semgrep, ShellCheck, and Gitleaks binaries add changed-line findings to the same Go result.
 - **Model choice** — OpenAI, Anthropic, Gemini, and OpenAI-compatible chat endpoints.
+- **Predictable runs** — private provider setup, per-run overrides, token and time limits, usage totals, partial status, and atomic output files.
 - **GitHub posting** — findings use PR review comments, while the summary preserves prior review state.
 - **Codebase-aware chat** — ask questions about bounded PR context via `@open-review`, or use `ask --repo PATH` locally.
 - **Team learnings** — the existing PR comment commands can list and remove stored learnings.
@@ -50,7 +54,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: scale-sync/open-review/action@v0.8.0
+      - uses: scale-sync/open-review/action@v0.9.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -63,6 +67,7 @@ From this source checkout after `pnpm build`:
 ```bash
 # Review a PR (Fast mode)
 node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123
+node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123 --provider openai --model gpt-4o --total-tokens 10000 --output json --output-file review.json --quiet
 ```
 
 For developers working in a local clone:
@@ -101,9 +106,13 @@ node cli/dist/main.mjs review --url <PR-URL> [options]
 | `--mode <mode>`  | `fast`   | Review mode: `fast` or `rlm`                          |
 | `--output <fmt>` | `text`   | Output format: `text`, `markdown`, or `json`          |
 | `--model <id>`   | —        | Override the LLM model at runtime                     |
+| `--provider <p>` | —        | Select OpenAI, Anthropic, or Gemini                   |
+| `--base-url <u>` | —        | Use a custom provider endpoint                        |
+| `--output-file`  | —        | Atomically save the result to a private file          |
+| `--total-tokens` | —        | Limit aggregate model token use                       |
 | `--expert`       | off      | Comprehensive SOLID, security, and quality review     |
 | `--submit`       | off      | Post findings as GitHub PR comment (inline + summary) |
-| `--quiet`        | off      | Suppress progress output (only print findings)        |
+| `--quiet`        | off      | Suppress progress messages on stderr                  |
 
 **Expert mode** (`--expert`) adds deep analysis covering:
 

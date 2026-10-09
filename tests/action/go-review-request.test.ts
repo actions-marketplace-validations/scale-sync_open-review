@@ -42,5 +42,13 @@ describe('Go review request', () => {
     expect(request.reviewKind).toBe('fast');
     expect(toGoRequest(pr, files, 'deep').reviewKind).toBe('deep');
     expect(JSON.stringify(request)).not.toContain('api-key');
+    const override = toGoRequest(pr, files, 'fast', {
+      provider: 'anthropic',
+      model: 'claude-test',
+      totalTokens: 5000,
+    });
+    expect(override.model).toEqual({ provider: 'anthropic', name: 'claude-test', baseUrl: '' });
+    expect(override.limits.totalTokens).toBe(5000);
+    expect(JSON.stringify(override)).not.toContain('secret');
   });
 });

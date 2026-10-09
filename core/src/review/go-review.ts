@@ -9,16 +9,46 @@ import { extractDiffForFiles } from './diff-fingerprint.js';
 import type { PRContext, ReviewFinding, ReviewSummary, ReviewTrace } from './types.js';
 
 export interface GoReviewResult {
-  status: 'empty' | 'skipped' | 'complete' | 'failed';
+  status: 'empty' | 'skipped' | 'complete' | 'partial' | 'failed';
   findings: ReviewFinding[];
   summary?: ReviewSummary;
   trace?: ReviewTrace;
   coverage: Array<{ path: string; state: string; reason?: string }>;
   audit?: Array<{ stage: string; status: string; message?: string }>;
   error?: string;
+  usage?: {
+    promptTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    modelCalls: number;
+    estimated: boolean;
+  };
 }
 
-export function toGoRequest(pr: PRContext, files: PRFile[], reviewKind: 'fast' | 'deep' = 'fast') {
+export interface GoReviewOptions {
+  provider?: string;
+  model?: string;
+  baseUrl?: string;
+  promptTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  requestSeconds?: number;
+  groupSeconds?: number;
+}
+
+function limit(value: number | undefined, key: string): number {
+  const selected = value ?? (process.env[key] ? Number(process.env[key]) : 0);
+  if (!Number.isSafeInteger(selected) || selected < 0)
+    throw new Error(`${key} must be a nonnegative integer`);
+  return selected;
+}
+
+export function toGoRequest(
+  pr: PRContext,
+  files: PRFile[],
+  reviewKind: 'fast' | 'deep' = 'fast',
+  options: GoReviewOptions = {},
+) {
   return {
     contractVersion: 2,
     mode: 'branch',
@@ -28,6 +58,18 @@ export function toGoRequest(pr: PRContext, files: PRFile[], reviewKind: 'fast' |
     title: pr.metadata.title,
     instructions: pr.instructions,
     reviewKind,
+    model: {
+      provider: options.provider || process.env.OPEN_REVIEW_PROVIDER || '',
+      name: options.model || process.env.MAIN_MODEL || '',
+      baseUrl: options.baseUrl || process.env.OPEN_REVIEW_BASE_URL || '',
+    },
+    limits: {
+      promptTokens: limit(options.promptTokens, 'OPEN_REVIEW_PROMPT_TOKENS'),
+      outputTokens: limit(options.outputTokens, 'OPEN_REVIEW_OUTPUT_TOKENS'),
+      totalTokens: limit(options.totalTokens, 'OPEN_REVIEW_TOTAL_TOKENS'),
+      requestSeconds: limit(options.requestSeconds, 'OPEN_REVIEW_REQUEST_SECONDS'),
+      groupSeconds: limit(options.groupSeconds, 'OPEN_REVIEW_GROUP_SECONDS'),
+    },
     worktreeRoot: process.env.GITHUB_WORKSPACE || process.cwd(),
     diff: '',
     files: [],
@@ -65,6 +107,7 @@ export async function runGoReview(
   files: PRFile[],
   maxFiles = 100,
   reviewKind: 'fast' | 'deep' = 'fast',
+  options: GoReviewOptions = {},
 ): Promise<GoReviewResult> {
   if (!Number.isSafeInteger(maxFiles) || maxFiles < 1) {
     throw new Error('max-files must be a positive integer');
@@ -83,7 +126,7 @@ export async function runGoReview(
     ? ['review-json', '--max-files', String(maxFiles)]
     : ['run', './cmd/open-review', 'review-json', '--max-files', String(maxFiles)];
   const cwd = binary ? process.cwd() : root;
-  const request = JSON.stringify(toGoRequest(pr, files, reviewKind));
+  const request = JSON.stringify(toGoRequest(pr, files, reviewKind, options));
   if (Buffer.byteLength(request) > 10_000_000) throw new Error('Review request exceeds 10 MB');
 
   return new Promise((resolve, reject) => {
