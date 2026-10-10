@@ -14,9 +14,10 @@ var ErrBudget = errors.New("model token budget exhausted")
 type sessionKey struct{}
 
 type session struct {
-	mu     sync.Mutex
-	limits model.Limits
-	usage  model.Usage
+	mu       sync.Mutex
+	limits   model.Limits
+	usage    model.Usage
+	reserved int
 }
 
 func WithSession(parent context.Context, limits model.Limits) (context.Context, context.CancelFunc, func() model.Usage, error) {
@@ -46,19 +47,35 @@ func WithSession(parent context.Context, limits model.Limits) (context.Context, 
 	return ctx, cancel, func() model.Usage { state.mu.Lock(); defer state.mu.Unlock(); return state.usage }, nil
 }
 
-func budget(ctx context.Context, promptBytes int) (int, time.Duration, error) {
+func budget(ctx context.Context, promptBytes int) (int, time.Duration, func(), error) {
 	state, ok := ctx.Value(sessionKey{}).(*session)
 	if !ok {
-		return 2_048, 90 * time.Second, nil
+		return 2_048, 90 * time.Second, func() {}, nil
 	}
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	estimate := max(1, (promptBytes+3)/4)
-	remaining := state.limits.TotalTokens - state.usage.TotalTokens - estimate
+	remaining := state.limits.TotalTokens - state.usage.TotalTokens - state.reserved - estimate
 	if estimate > state.limits.PromptTokens || remaining < 1 {
-		return 0, 0, ErrBudget
+		return 0, 0, nil, ErrBudget
 	}
-	return min(state.limits.OutputTokens, remaining), time.Duration(state.limits.RequestSeconds) * time.Second, nil
+	cap := min(state.limits.OutputTokens, remaining)
+	state.reserved += estimate + cap
+	return cap, time.Duration(state.limits.RequestSeconds) * time.Second, func() {
+		state.mu.Lock()
+		state.reserved -= estimate + cap
+		state.mu.Unlock()
+	}, nil
+}
+
+func canPlan(ctx context.Context) bool {
+	state, ok := ctx.Value(sessionKey{}).(*session)
+	if !ok {
+		return true
+	}
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	return state.limits.TotalTokens-state.usage.TotalTokens-state.reserved >= 10_000
 }
 
 func record(ctx context.Context, promptBytes, outputBytes, promptTokens, outputTokens, outputCap int) bool {

@@ -65,9 +65,13 @@ func Run(ctx context.Context, req model.Request, reviewer Reviewer) (model.Resul
 	if response.Partial {
 		result.Status = "partial"
 	}
+	reviewed := make(map[string]bool, len(response.ReviewedFiles))
+	for _, file := range response.ReviewedFiles {
+		reviewed[file] = true
+	}
 	for i := range result.Coverage {
 		if result.Coverage[i].State == "selected" {
-			if response.Partial {
+			if response.Partial && !reviewed[result.Coverage[i].Path] {
 				result.Coverage[i].State = "partial"
 			} else {
 				result.Coverage[i].State = "reviewed"

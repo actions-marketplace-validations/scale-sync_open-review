@@ -85,10 +85,11 @@ type Citation struct {
 }
 
 type ReviewResponse struct {
-	Findings []json.RawMessage `json:"findings"`
-	Summary  json.RawMessage   `json:"summary"`
-	Trace    json.RawMessage   `json:"trace"`
-	Partial  bool              `json:"-"`
+	Findings      []json.RawMessage `json:"findings"`
+	Summary       json.RawMessage   `json:"summary"`
+	Trace         json.RawMessage   `json:"trace"`
+	Partial       bool              `json:"-"`
+	ReviewedFiles []string          `json:"-"`
 }
 
 type AuditEvent struct {

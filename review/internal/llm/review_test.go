@@ -49,17 +49,6 @@ func TestModelProvidersAndMalformedOutput(t *testing.T) {
 	}
 }
 
-func TestChunkBudget(t *testing.T) {
-	_, err := chunk(strings.Repeat("x", maxChunkBytes+1))
-	if err == nil {
-		t.Fatal("oversized patch should fail")
-	}
-	parts, err := chunk("diff --git a/a.go b/a.go\n+a\n" + "diff --git a/b.go b/b.go\n+b\n")
-	if err != nil || len(parts) != 1 || strings.Count(parts[0], "diff --git ") != 2 {
-		t.Fatalf("chunks = %+v, %v", parts, err)
-	}
-}
-
 func TestReviewStopsAtAggregateBudgetWithUsage(t *testing.T) {
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -140,5 +129,172 @@ func TestProviderReportedOverrunStopsResult(t *testing.T) {
 	_, err = callModel(ctx, model.ModelIdentity{}, "test")
 	if !errors.Is(err, ErrBudget) || usage().OutputTokens != 10 {
 		t.Fatalf("error = %v, usage = %+v", err, usage())
+	}
+}
+
+func TestReviewPlansLargeChangeAndCollectsParallelGroupsInOrder(t *testing.T) {
+	var active, peak, plans atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Error(err)
+			return
+		}
+		content := request.Messages[0].Content
+		if strings.Contains(content, "one short review focus") {
+			plans.Add(1)
+			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"focus\":\"check callers\"}"}}]}`))
+			return
+		}
+		current := active.Add(1)
+		for {
+			old := peak.Load()
+			if current <= old || peak.CompareAndSwap(old, current) {
+				break
+			}
+		}
+		defer active.Add(-1)
+		time.Sleep(40 * time.Millisecond)
+		file := "c/three.go"
+		if strings.Contains(content, "b/one.go") {
+			file = "b/one.go"
+		}
+		if strings.Contains(content, "a/two.go") {
+			file = "a/two.go"
+		}
+		finding := `{"findings":[{"category":"bug","severity":"severe","file":"` + file + `","startLine":1,"endLine":1,"title":"check","explanation":"impact"}]}`
+		response, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": finding}}}})
+		_, _ = w.Write(response)
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	files := []string{"b/one.go", "a/two.go", "c/three.go"}
+	patch := ""
+	for _, file := range files {
+		patch += "diff --git a/" + file + " b/" + file + "\n+change\n"
+	}
+	ctx, cancel, _, err := WithSession(context.Background(), model.Limits{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cancel()
+	result, err := Review(ctx, model.Request{Files: files, Diff: patch})
+	if err != nil || result.Partial || plans.Load() != 1 || peak.Load() < 2 || peak.Load() > 3 || len(result.Findings) != 3 {
+		t.Fatalf("result = %+v, plans = %d, peak = %d, err = %v", result, plans.Load(), peak.Load(), err)
+	}
+	for i, raw := range result.Findings {
+		var finding model.Finding
+		_ = json.Unmarshal(raw, &finding)
+		if finding.File != files[i] {
+			t.Fatalf("finding %d = %s", i, finding.File)
+		}
+	}
+}
+
+func TestReviewIsolatesGroupFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&request)
+		content := `{"findings":[]}`
+		if strings.Contains(request.Messages[0].Content, "b/two.go") {
+			content = "bad json"
+		}
+		response, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": content}}}})
+		_, _ = w.Write(response)
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	result, err := Review(context.Background(), model.Request{Files: []string{"a/one.go", "b/two.go"}, Diff: "diff --git a/a/one.go b/a/one.go\n+a\ndiff --git a/b/two.go b/b/two.go\n+b\n"})
+	if err != nil || !result.Partial || len(result.ReviewedFiles) != 1 || result.ReviewedFiles[0] != "a/one.go" {
+		t.Fatalf("result = %+v, err = %v", result, err)
+	}
+}
+
+func TestMalformedPlanFallsBackWithoutChangingGroups(t *testing.T) {
+	var plans, reviews atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&request)
+		content := `{"findings":[]}`
+		if strings.Contains(request.Messages[0].Content, "one short review focus") {
+			plans.Add(1)
+			content = "bad plan"
+		} else {
+			reviews.Add(1)
+		}
+		response, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": content}}}})
+		_, _ = w.Write(response)
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	files := []string{"a/one.go", "b/two.go", "c/three.go"}
+	patch := ""
+	for _, file := range files {
+		patch += "diff --git a/" + file + " b/" + file + "\n+change\n"
+	}
+	result, err := Review(context.Background(), model.Request{Files: files, Diff: patch})
+	var trace struct {
+		Plan   string `json:"plan"`
+		Groups int    `json:"groups"`
+	}
+	_ = json.Unmarshal(result.Trace, &trace)
+	if err != nil || result.Partial || plans.Load() != 1 || reviews.Load() != 3 || trace.Plan != "fallback" || trace.Groups != 3 {
+		t.Fatalf("trace = %+v, plans = %d, reviews = %d, err = %v", trace, plans.Load(), reviews.Load(), err)
+	}
+}
+
+func TestConcurrentCallsReserveOneSharedBudget(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-release
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`))
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	ctx, cancel, _, err := WithSession(context.Background(), model.Limits{TotalTokens: 2_048})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { _, err := callModel(ctx, model.ModelIdentity{}, "first"); done <- err }()
+	<-started
+	_, err = callModel(ctx, model.ModelIdentity{}, "second")
+	close(release)
+	if !errors.Is(err, ErrBudget) || <-done != nil {
+		t.Fatalf("second call = %v", err)
+	}
+}
+
+func TestReviewHonorsCancellation(t *testing.T) {
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := Review(ctx, model.Request{Files: []string{"a.go"}, Diff: "diff --git a/a.go b/a.go\n+a\n"})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancellation = %v", err)
 	}
 }

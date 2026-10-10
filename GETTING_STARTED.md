@@ -1,6 +1,6 @@
 # Getting started with open-review
 
-v0.9.0 runs fast and deep reviews in Go. Build it locally to review workspace changes, compare branches, or review one commit, with visible file coverage and bounded model use.
+v1.0.0 runs fast and deep reviews in Go. Build it locally to review workspace changes, compare branches, or review one commit, with visible file coverage and bounded model use.
 
 ```bash
 git clone https://github.com/scale-sync/open-review.git
@@ -21,4 +21,4 @@ go run ./cmd/open-review review --repo /path/to/repository --base main --head fe
 go run ./cmd/open-review review --repo /path/to/repository --commit HEAD --output json
 ```
 
-See [setup](SETUP.md) for requirements and tests. The pull request CLI is available from source via `node cli/dist/main.mjs review --url <PR-URL>`. The bundled GitHub Action is available at `scale-sync/open-review/action@v0.9.0` for Linux x64. No package registry installation is available yet.
+See [setup](SETUP.md) for requirements and tests. The pull request CLI is available from source via `node cli/dist/main.mjs review --url <PR-URL>`. The bundled GitHub Action is available at `scale-sync/open-review/action@v1.0.0` for Linux x64. No package registry installation is available yet.
