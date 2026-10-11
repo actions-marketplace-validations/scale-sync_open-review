@@ -18,6 +18,7 @@ import (
 	"github.com/scale-sync/open-review/review/internal/agent"
 	"github.com/scale-sync/open-review/review/internal/config"
 	"github.com/scale-sync/open-review/review/internal/model"
+	"github.com/scale-sync/open-review/review/internal/tool"
 )
 
 const maxChunkBytes = 40_000
@@ -35,6 +36,9 @@ type rawFinding struct {
 }
 
 func Review(ctx context.Context, req model.Request) (model.ReviewResponse, error) {
+	if req.ReviewEffort != "" && req.ReviewEffort != "low" && req.ReviewEffort != "medium" && req.ReviewEffort != "high" {
+		return model.ReviewResponse{}, errors.New("unsupported review effort")
+	}
 	start := time.Now()
 	selected, err := config.Resolve(req.Model)
 	if err != nil {
@@ -65,10 +69,14 @@ func Review(ctx context.Context, req model.Request) (model.ReviewResponse, error
 		}
 	}
 	type groupResult struct {
-		items []rawFinding
-		err   error
+		items      []rawFinding
+		err        error
+		rounds     int
+		tools      int
+		compressed bool
 	}
 	results := make([]groupResult, len(groups))
+	reader := tool.New(req)
 	jobs := make(chan int, len(groups))
 	for i := range groups {
 		jobs <- i
@@ -84,46 +92,7 @@ func Review(ctx context.Context, req model.Request) (model.ReviewResponse, error
 					results[i].err = err
 					continue
 				}
-				answer, err := callModel(ctx, req.Model, prompt(req, groups[i].Patch))
-				if err != nil {
-					results[i].err = err
-					continue
-				}
-				var output struct {
-					Findings []rawFinding `json:"findings"`
-				}
-				if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &output); err != nil || output.Findings == nil {
-					results[i].err = errors.New("model returned malformed review JSON")
-					continue
-				}
-				for _, item := range output.Findings {
-					validFile := false
-					for _, file := range groups[i].Files {
-						if file == item.File {
-							validFile = true
-							break
-						}
-					}
-					if !validFile || item.StartLine < 1 || item.EndLine < item.StartLine || item.EndLine-item.StartLine > 50 || item.Title == "" || len(item.Title) > 120 || item.Explanation == "" || (item.Category != "bug" && item.Category != "flag") || (item.Severity != "severe" && item.Severity != "non-severe" && item.Severity != "investigate" && item.Severity != "informational") {
-						results[i].err = errors.New("model returned invalid finding")
-						break
-					}
-					if len(req.Changes) > 0 {
-						for line := item.StartLine; line <= item.EndLine; line++ {
-							if !agent.ChangedLine(req.Changes, item.File, line) {
-								results[i].err = errors.New("model cited a line outside the diff")
-								break
-							}
-						}
-					}
-					if results[i].err != nil {
-						break
-					}
-				}
-				if results[i].err != nil {
-					continue
-				}
-				results[i].items = output.Findings
+				results[i].items, results[i].rounds, results[i].tools, results[i].compressed, results[i].err = reviewGroup(ctx, req, groups[i], reader)
 			}
 		}()
 	}
@@ -135,8 +104,14 @@ func Review(ctx context.Context, req model.Request) (model.ReviewResponse, error
 	completed := 0
 	reviewedFiles := 0
 	completedFiles := make([]string, 0, len(req.Files))
+	rounds, toolCalls, compressedGroups := 0, 0, 0
 	var firstErr error
 	for i, output := range results {
+		rounds += output.rounds
+		toolCalls += output.tools
+		if output.compressed {
+			compressedGroups++
+		}
 		if output.err != nil {
 			partial = true
 			if firstErr == nil {
@@ -185,9 +160,103 @@ func Review(ctx context.Context, req model.Request) (model.ReviewResponse, error
 		"model": selected.Model, "provider": selected.Provider, "path": "go", "rawFindingsCount": len(findings),
 		"postValidationCount": len(findings), "finalFindingsCount": len(findings),
 		"groups": len(groups), "groupsCompleted": completed, "plan": plan,
+		"reviewRounds": rounds, "toolCalls": toolCalls, "compressedGroups": compressedGroups,
 		"droppedByCitation": []any{}, "durationMs": duration.Milliseconds(),
 	})
 	return model.ReviewResponse{Findings: findings, Summary: summary, Trace: trace, Partial: partial, ReviewedFiles: completedFiles}, nil
+}
+
+func reviewGroup(ctx context.Context, req model.Request, group agent.Group, reader *tool.Reader) ([]rawFinding, int, int, bool, error) {
+	maxRounds := 3
+	if req.ReviewEffort == "low" {
+		maxRounds = 1
+	}
+	if req.ReviewEffort == "high" {
+		maxRounds = 5
+	}
+	task := prompt(req, group.Patch)
+	if maxRounds > 1 {
+		task += "\nFor more context, return one JSON tool call: {\"tool\":\"read_diff|read_file|list_files|search\",\"path\":\"repo-relative path\",\"query\":\"literal search text\"}. Repository file tools use the pinned local Git revision or reviewed GitHub head when available. To record one finding, return {\"tool\":\"comment\",\"finding\":{...same finding fields...}}. To finish after comments, return {\"tool\":\"complete\"}. You may instead return {\"findings\":[...]} at any round. Never put more than one tool call in one response."
+	}
+	history := []toolRound{}
+	items := []rawFinding{}
+	tools, compressed := 0, false
+	for round := 1; round <= maxRounds; round++ {
+		content, shortened := compose(task, history, promptLimit(ctx))
+		compressed = compressed || shortened
+		answer, err := callModel(ctx, req.Model, content)
+		if err != nil {
+			return nil, round, tools, compressed, err
+		}
+		var output struct {
+			Findings *[]rawFinding `json:"findings"`
+			Tool     string        `json:"tool"`
+			Path     string        `json:"path"`
+			Query    string        `json:"query"`
+			Finding  *rawFinding   `json:"finding"`
+		}
+		if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &output); err != nil || (output.Findings == nil && output.Tool == "") || (output.Findings != nil && output.Tool != "") {
+			return nil, round, tools, compressed, errors.New("model returned malformed review JSON")
+		}
+		if output.Findings != nil {
+			for _, item := range *output.Findings {
+				if err := validFinding(req, group, item); err != nil {
+					return nil, round, tools, compressed, err
+				}
+			}
+			return append(items, *output.Findings...), round, tools, compressed, nil
+		}
+		if output.Tool == "complete" {
+			return items, round, tools, compressed, nil
+		}
+		if round == maxRounds {
+			return nil, round, tools, compressed, errors.New("review tool limit reached before completion")
+		}
+		if output.Tool == "comment" {
+			if output.Finding == nil {
+				return nil, round, tools, compressed, errors.New("model returned comment without finding")
+			}
+			if err := validFinding(req, group, *output.Finding); err != nil {
+				return nil, round, tools, compressed, err
+			}
+			items = append(items, *output.Finding)
+			history = append(history, toolRound{name: "comment", target: output.Finding.File, result: "finding recorded"})
+			tools++
+			continue
+		}
+		call := tool.Request{Name: output.Tool, Path: output.Path, Query: output.Query}
+		observation, err := reader.Run(ctx, call)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, round, tools, compressed, ctx.Err()
+			}
+			observation = "unavailable: " + err.Error()
+		}
+		history = append(history, toolRound{name: call.Name, target: call.Path + call.Query, result: observation})
+		tools++
+	}
+	return nil, maxRounds, tools, compressed, errors.New("review did not complete")
+}
+
+func validFinding(req model.Request, group agent.Group, item rawFinding) error {
+	validFile := false
+	for _, file := range group.Files {
+		if file == item.File {
+			validFile = true
+			break
+		}
+	}
+	if !validFile || item.StartLine < 1 || item.EndLine < item.StartLine || item.EndLine-item.StartLine > 50 || item.Title == "" || len(item.Title) > 120 || item.Explanation == "" || (item.Category != "bug" && item.Category != "flag") || (item.Severity != "severe" && item.Severity != "non-severe" && item.Severity != "investigate" && item.Severity != "informational") {
+		return errors.New("model returned invalid finding")
+	}
+	if len(req.Changes) > 0 {
+		for line := item.StartLine; line <= item.EndLine; line++ {
+			if !agent.ChangedLine(req.Changes, item.File, line) {
+				return errors.New("model cited a line outside the diff")
+			}
+		}
+	}
+	return nil
 }
 
 func Investigate(ctx context.Context, req model.Request, history string) (string, bool, error) {

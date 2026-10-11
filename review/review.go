@@ -73,6 +73,9 @@ func Prepare(ctx context.Context, opts Options) (Request, error) {
 }
 
 func Run(ctx context.Context, req Request) (Result, error) {
+	if req.ReviewEffort != "" && req.ReviewEffort != "low" && req.ReviewEffort != "medium" && req.ReviewEffort != "high" {
+		return Result{}, fmt.Errorf("unsupported review effort %q", req.ReviewEffort)
+	}
 	ctx, cancel, usage, err := llm.WithSession(ctx, req.Limits)
 	if err != nil {
 		return Result{}, err
@@ -120,6 +123,7 @@ func PrepareExternal(req Request, maxFiles int) (Request, error) {
 	if req.ContractVersion != model.ContractVersion || req.Mode != "branch" || req.RepoRoot == "" {
 		return Request{}, fmt.Errorf("invalid external review request")
 	}
+	req.WorktreeRoot = ""
 	for i := range req.Changes {
 		change := &req.Changes[i]
 		if change.InputIssue == "" && (change.Patch == "" || !strings.HasPrefix(change.Patch, "diff --git ")) {

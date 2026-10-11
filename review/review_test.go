@@ -45,6 +45,13 @@ func TestGoReviewPreservesFullChanges(t *testing.T) {
 	}
 }
 
+func TestExternalRequestCannotGrantLocalFileReads(t *testing.T) {
+	req, err := PrepareExternal(Request{ContractVersion: 2, Mode: "branch", RepoRoot: "org/repo", WorktreeRoot: t.TempDir()}, 10)
+	if err != nil || req.WorktreeRoot != "" {
+		t.Fatalf("external worktree = %q, err = %v", req.WorktreeRoot, err)
+	}
+}
+
 func TestDeepReviewUsesSandboxAuditAndGoValidation(t *testing.T) {
 	t.Setenv("GITHUB_ACTIONS", "false")
 	bin := t.TempDir()

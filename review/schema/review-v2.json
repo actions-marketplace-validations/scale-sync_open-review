@@ -62,6 +62,7 @@
         "title": { "type": "string" },
         "instructions": { "type": "string" },
         "reviewKind": { "enum": ["fast", "deep"] },
+        "reviewEffort": { "enum": ["low", "medium", "high"] },
         "worktreeRoot": { "type": "string" },
         "model": {
           "type": "object",

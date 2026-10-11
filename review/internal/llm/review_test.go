@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/scale-sync/open-review/review/internal/diff"
 	"github.com/scale-sync/open-review/review/internal/model"
 )
 
@@ -296,5 +297,73 @@ func TestReviewHonorsCancellation(t *testing.T) {
 	_, err := Review(ctx, model.Request{Files: []string{"a.go"}, Diff: "diff --git a/a.go b/a.go\n+a\n"})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancellation = %v", err)
+	}
+}
+
+func TestIterativeReviewReadsDiffRecordsCommentAndCompletes(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Error(err)
+		}
+		index := calls.Add(1)
+		answer := `{"tool":"read_diff","path":"main.go"}`
+		if index == 2 {
+			if !strings.Contains(request.Messages[0].Content, "+bad") {
+				t.Error("selected diff missing from second round")
+			}
+			answer = `{"tool":"comment","finding":{"category":"bug","severity":"severe","file":"main.go","startLine":1,"endLine":1,"title":"Bad call","explanation":"The call fails"}}`
+		}
+		if index == 3 {
+			answer = `{"tool":"complete"}`
+		}
+		encoded, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": answer}}}})
+		_, _ = w.Write(encoded)
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	patch := "diff --git a/main.go b/main.go\n@@ -0,0 +1 @@\n+bad\n"
+	response, err := Review(context.Background(), model.Request{ReviewEffort: "medium", Files: []string{"main.go"}, Diff: patch, Changes: []diff.Change{diff.FromPatch(diff.Change{Path: "main.go", Patch: patch})}})
+	var trace struct {
+		ReviewRounds int `json:"reviewRounds"`
+		ToolCalls    int `json:"toolCalls"`
+	}
+	_ = json.Unmarshal(response.Trace, &trace)
+	if err != nil || response.Partial || len(response.Findings) != 1 || calls.Load() != 3 || trace.ReviewRounds != 3 || trace.ToolCalls != 2 {
+		t.Fatalf("response = %+v, trace = %+v, calls = %d, err = %v", response, trace, calls.Load(), err)
+	}
+}
+
+func TestReviewEffortStopsToolsAndLowFinishesEarly(t *testing.T) {
+	var calls atomic.Int32
+	answer := `{"tool":"read_diff","path":"main.go"}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		encoded, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": answer}}}})
+		_, _ = w.Write(encoded)
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	patch := "diff --git a/main.go b/main.go\n+bad\n"
+	req := model.Request{ReviewEffort: "high", Files: []string{"main.go"}, Diff: patch, Changes: []diff.Change{{Path: "main.go", Patch: patch}}}
+	_, err := Review(context.Background(), req)
+	if err == nil || !strings.Contains(err.Error(), "tool limit") || calls.Load() != 5 {
+		t.Fatalf("high calls = %d, err = %v", calls.Load(), err)
+	}
+	answer = `{"findings":[]}`
+	calls.Store(0)
+	req.ReviewEffort = "low"
+	response, err := Review(context.Background(), req)
+	if err != nil || response.Partial || calls.Load() != 1 {
+		t.Fatalf("low calls = %d, err = %v", calls.Load(), err)
 	}
 }

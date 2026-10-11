@@ -13,6 +13,7 @@ import {
   runGoReview,
 } from '@openreview/core';
 import type { PRContext } from '@openreview/core';
+import { injectInputsToEnv } from './inputs.js';
 
 /**
  * Handle pull_request_review_comment and issue_comment events.
@@ -289,27 +290,5 @@ export async function handleComment(context: Context): Promise<void> {
     const msg = err instanceof Error ? err.message : String(err);
     core.error(`Chat handler failed: ${msg}`);
     await poster.postChatReply(prNumber, `[ERROR] **open-review** — Failed to answer: ${msg}`);
-  }
-}
-
-/**
- * Inject action inputs into process.env so @openreview/core config picks them up.
- */
-function injectInputsToEnv(): void {
-  const mappings: Array<[string, string]> = [
-    ['openai-api-key', 'OPENAI_API_KEY'],
-    ['anthropic-api-key', 'ANTHROPIC_API_KEY'],
-    ['gemini-api-key', 'GEMINI_API_KEY'],
-    ['main-model', 'MAIN_MODEL'],
-    ['sub-model', 'SUB_MODEL'],
-    ['max-files', 'MAX_FILES'],
-    ['review-drafts', 'REVIEW_DRAFTS'],
-  ];
-
-  for (const [input, envVar] of mappings) {
-    const value = core.getInput(input);
-    if (value) {
-      process.env[envVar] = value;
-    }
   }
 }

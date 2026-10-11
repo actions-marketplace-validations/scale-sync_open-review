@@ -67,6 +67,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	groupSeconds := flags.Int("group-seconds", 0, "review deadline")
 	preview := flags.Bool("preview", false, "show selected and skipped files without calling a model")
 	deep := flags.Bool("deep", false, "run bounded deep verification before review")
+	effort := flags.String("effort", "medium", "review rounds: low, medium, or high")
 	maxFiles := flags.Int("max-files", 100, "maximum selected files")
 	maxFileBytes := flags.Int("max-file-bytes", 1<<20, "maximum full patch bytes per file")
 	maxPatchBytes := flags.Int("max-patch-bytes", 38_000, "maximum bytes sent per file")
@@ -81,6 +82,9 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	}
 	if *format != "text" && *format != "json" {
 		return fmt.Errorf("unsupported output %q", *format)
+	}
+	if *effort != "low" && *effort != "medium" && *effort != "high" {
+		return fmt.Errorf("unsupported review effort %q", *effort)
 	}
 	if *maxFiles < 1 || *maxFileBytes < 1 || *maxPatchBytes < 1024 || *maxPatchBytes > 38_000 {
 		return errors.New("review limits must be positive and max-patch-bytes must be between 1024 and 38000")
@@ -101,6 +105,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if *deep {
 		req.ReviewKind = "deep"
 	}
+	req.ReviewEffort = *effort
 	req.Model = review.ModelIdentity{Provider: *provider, Name: *modelName, BaseURL: *baseURL}
 	req.Limits = review.Limits{PromptTokens: *promptTokens, OutputTokens: *outputTokens, TotalTokens: *totalTokens, RequestSeconds: *requestSeconds, GroupSeconds: *groupSeconds}
 	var rendered bytes.Buffer

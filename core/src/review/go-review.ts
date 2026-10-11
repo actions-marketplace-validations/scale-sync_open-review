@@ -26,6 +26,7 @@ export interface GoReviewResult {
 }
 
 export interface GoReviewOptions {
+  effort?: 'low' | 'medium' | 'high';
   provider?: string;
   model?: string;
   baseUrl?: string;
@@ -58,6 +59,7 @@ export function toGoRequest(
     title: pr.metadata.title,
     instructions: pr.instructions,
     reviewKind,
+    reviewEffort: options.effort || process.env.OPEN_REVIEW_EFFORT || 'medium',
     model: {
       provider: options.provider || process.env.OPEN_REVIEW_PROVIDER || '',
       name: options.model || process.env.MAIN_MODEL || '',
@@ -70,7 +72,6 @@ export function toGoRequest(
       requestSeconds: limit(options.requestSeconds, 'OPEN_REVIEW_REQUEST_SECONDS'),
       groupSeconds: limit(options.groupSeconds, 'OPEN_REVIEW_GROUP_SECONDS'),
     },
-    worktreeRoot: process.env.GITHUB_WORKSPACE || process.cwd(),
     diff: '',
     files: [],
     changes: files.map((file) => ({

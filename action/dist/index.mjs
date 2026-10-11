@@ -151343,6 +151343,7 @@ function toGoRequest(pr, files, reviewKind = "fast", options = {}) {
 		title: pr.metadata.title,
 		instructions: pr.instructions,
 		reviewKind,
+		reviewEffort: options.effort || process.env.OPEN_REVIEW_EFFORT || "medium",
 		model: {
 			provider: options.provider || process.env.OPEN_REVIEW_PROVIDER || "",
 			name: options.model || process.env.MAIN_MODEL || "",
@@ -151355,7 +151356,6 @@ function toGoRequest(pr, files, reviewKind = "fast", options = {}) {
 			requestSeconds: limit(options.requestSeconds, "OPEN_REVIEW_REQUEST_SECONDS"),
 			groupSeconds: limit(options.groupSeconds, "OPEN_REVIEW_GROUP_SECONDS")
 		},
-		worktreeRoot: process.env.GITHUB_WORKSPACE || process.cwd(),
 		diff: "",
 		files: [],
 		changes: files.map((file) => ({
@@ -151776,6 +151776,31 @@ async function validateAnswerCitations(answer, snapshot) {
 	return answer;
 }
 //#endregion
+//#region src/inputs.ts
+function injectInputsToEnv() {
+	for (const [input, envVar] of [
+		["github-token", "GITHUB_TOKEN"],
+		["openai-api-key", "OPENAI_API_KEY"],
+		["anthropic-api-key", "ANTHROPIC_API_KEY"],
+		["gemini-api-key", "GEMINI_API_KEY"],
+		["main-model", "MAIN_MODEL"],
+		["provider", "OPEN_REVIEW_PROVIDER"],
+		["base-url", "OPEN_REVIEW_BASE_URL"],
+		["effort", "OPEN_REVIEW_EFFORT"],
+		["prompt-tokens", "OPEN_REVIEW_PROMPT_TOKENS"],
+		["output-tokens", "OPEN_REVIEW_OUTPUT_TOKENS"],
+		["total-tokens", "OPEN_REVIEW_TOTAL_TOKENS"],
+		["request-seconds", "OPEN_REVIEW_REQUEST_SECONDS"],
+		["group-seconds", "OPEN_REVIEW_GROUP_SECONDS"],
+		["sub-model", "SUB_MODEL"],
+		["max-files", "MAX_FILES"],
+		["review-drafts", "REVIEW_DRAFTS"]
+	]) {
+		const value = getInput(input);
+		if (value) process.env[envVar] = value;
+	}
+}
+//#endregion
 //#region src/comment-handler.ts
 /**
 * Handle pull_request_review_comment and issue_comment events.
@@ -151813,7 +151838,7 @@ async function handleComment(context) {
 		}
 		return;
 	}
-	injectInputsToEnv$1();
+	injectInputsToEnv();
 	const client = new GitHubClient({
 		token,
 		owner,
@@ -151979,23 +152004,6 @@ async function handleComment(context) {
 		await poster.postChatReply(prNumber, `[ERROR] **open-review** — Failed to answer: ${msg}`);
 	}
 }
-/**
-* Inject action inputs into process.env so @openreview/core config picks them up.
-*/
-function injectInputsToEnv$1() {
-	for (const [input, envVar] of [
-		["openai-api-key", "OPENAI_API_KEY"],
-		["anthropic-api-key", "ANTHROPIC_API_KEY"],
-		["gemini-api-key", "GEMINI_API_KEY"],
-		["main-model", "MAIN_MODEL"],
-		["sub-model", "SUB_MODEL"],
-		["max-files", "MAX_FILES"],
-		["review-drafts", "REVIEW_DRAFTS"]
-	]) {
-		const value = getInput(input);
-		if (value) process.env[envVar] = value;
-	}
-}
 //#endregion
 //#region src/pr-handler.ts
 /**
@@ -152075,30 +152083,6 @@ async function handlePullRequest(context) {
 		error(`Review failed: ${msg}`);
 		await poster.postAcknowledgement(prNumber, `[ERROR] **open-review** — Review failed: ${msg}`);
 		throw err;
-	}
-}
-/**
-* Inject action inputs into process.env so @openreview/core config picks them up.
-*/
-function injectInputsToEnv() {
-	for (const [input, envVar] of [
-		["openai-api-key", "OPENAI_API_KEY"],
-		["anthropic-api-key", "ANTHROPIC_API_KEY"],
-		["gemini-api-key", "GEMINI_API_KEY"],
-		["main-model", "MAIN_MODEL"],
-		["provider", "OPEN_REVIEW_PROVIDER"],
-		["base-url", "OPEN_REVIEW_BASE_URL"],
-		["prompt-tokens", "OPEN_REVIEW_PROMPT_TOKENS"],
-		["output-tokens", "OPEN_REVIEW_OUTPUT_TOKENS"],
-		["total-tokens", "OPEN_REVIEW_TOTAL_TOKENS"],
-		["request-seconds", "OPEN_REVIEW_REQUEST_SECONDS"],
-		["group-seconds", "OPEN_REVIEW_GROUP_SECONDS"],
-		["sub-model", "SUB_MODEL"],
-		["max-files", "MAX_FILES"],
-		["review-drafts", "REVIEW_DRAFTS"]
-	]) {
-		const value = getInput(input);
-		if (value) process.env[envVar] = value;
 	}
 }
 //#endregion

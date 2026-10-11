@@ -52,6 +52,7 @@ export function registerReviewCommand(program: Command): void {
     .option('--total-tokens <n>', 'Aggregate token budget')
     .option('--request-seconds <n>', 'Per-request timeout')
     .option('--group-seconds <n>', 'Review deadline')
+    .option('--effort <level>', 'Review rounds: low, medium, or high', 'medium')
     .option('--output-file <path>', 'Write output atomically to a file')
     .option('--expert', 'Comprehensive SOLID/security/quality review')
     .option('--submit', 'Post findings as GitHub PR comment')
@@ -62,7 +63,10 @@ export function registerReviewCommand(program: Command): void {
           throw new Error('mode must be fast or rlm');
         if (!['text', 'markdown', 'json'].includes(opts.output))
           throw new Error('output must be text, markdown, or json');
+        if (!['low', 'medium', 'high'].includes(opts.effort))
+          throw new Error('effort must be low, medium, or high');
         const modelOptions = {
+          effort: opts.effort as 'low' | 'medium' | 'high',
           provider: opts.provider as string | undefined,
           model: opts.model as string | undefined,
           baseUrl: opts.baseUrl as string | undefined,

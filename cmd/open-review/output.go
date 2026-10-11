@@ -44,7 +44,7 @@ func runCompletion(args []string, output io.Writer) error {
 		return fmt.Errorf("usage: open-review completion bash|zsh|fish")
 	}
 	commands := "review review-json config completion"
-	flags := "--repo --workspace --base --head --commit --deep --include --exclude --preview --output --output-file --quiet --provider --model --base-url --prompt-tokens --output-tokens --total-tokens --request-seconds --group-seconds"
+	flags := "--repo --workspace --base --head --commit --deep --effort --include --exclude --preview --output --output-file --quiet --provider --model --base-url --prompt-tokens --output-tokens --total-tokens --request-seconds --group-seconds"
 	switch args[0] {
 	case "bash":
 		_, err := fmt.Fprintf(output, "_open_review_complete() { COMPREPLY=( $(compgen -W '%s %s' -- \"${COMP_WORDS[COMP_CWORD]}\") ); }; complete -F _open_review_complete open-review\n", commands, flags)

@@ -43,6 +43,9 @@ inputs:
   group-seconds:
     description: 'Review deadline in seconds'
     required: false
+  effort:
+    description: 'Review rounds: low, medium, or high'
+    required: false
   sub-model:
     description: 'Secondary LLM model for summarization and suggestions'
     required: false

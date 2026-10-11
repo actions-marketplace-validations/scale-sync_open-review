@@ -34,6 +34,7 @@ type Request struct {
 	Title           string          `json:"title,omitempty"`
 	Instructions    string          `json:"instructions,omitempty"`
 	ReviewKind      string          `json:"reviewKind,omitempty"`
+	ReviewEffort    string          `json:"reviewEffort,omitempty"`
 	WorktreeRoot    string          `json:"worktreeRoot,omitempty"`
 	Model           ModelIdentity   `json:"model,omitempty"`
 	Limits          Limits          `json:"limits,omitempty"`

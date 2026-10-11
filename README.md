@@ -3,9 +3,9 @@
 [![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Open-source, agentic code review tool. v1.0.0 runs coordinated fast and deep reviews in Go for local Git changes and GitHub pull requests, with related-file context, bounded parallel calls, provider setup, and script-friendly results. TypeScript 7 handles GitHub events, review state, and conversation.
+Open-source, agentic code review tool. v1.1.0 runs coordinated fast and deep reviews in Go for local Git changes and GitHub pull requests, with bounded repository reads, review rounds, related-file context, provider setup, and script-friendly results. TypeScript 7 handles GitHub events, review state, and conversation.
 
-## v1.0.0 from source
+## v1.1.0 from source
 
 Requires Go 1.23+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
 
@@ -17,6 +17,7 @@ pnpm build
 go run ./cmd/open-review review --workspace
 go run ./cmd/open-review review --workspace --preview
 go run ./cmd/open-review review --workspace --deep
+go run ./cmd/open-review review --workspace --effort high
 go run ./cmd/open-review review --workspace --include '**/*.go' --exclude 'vendor/**'
 go run ./cmd/open-review review --base main --head feature-branch
 go run ./cmd/open-review review --commit HEAD --output json
@@ -25,7 +26,7 @@ go run ./cmd/open-review config test
 go run ./cmd/open-review review --workspace --model gpt-4o --total-tokens 10000 --output json --output-file review.json --quiet
 ```
 
-Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v1.0.0 release notes](_plan_docs/releases/v1.0.0.md).
+Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v1.1.0 release notes](_plan_docs/releases/v1.1.0.md).
 
 ## Current capabilities
 
@@ -34,6 +35,7 @@ Use `--repo PATH` to inspect another checkout. See [local review details](review
 - **Linter fusion** — available ESLint, Ruff, Semgrep, ShellCheck, and Gitleaks binaries add changed-line findings to the same Go result.
 - **Model choice** — OpenAI, Anthropic, Gemini, and OpenAI-compatible chat endpoints.
 - **Predictable runs** — private provider setup, per-run overrides, token and time limits, usage totals, partial status, and atomic output files.
+- **Bounded context** — pinned repository reads and search, controlled review rounds, and prompt compression.
 - **GitHub posting** — findings use PR review comments, while the summary preserves prior review state.
 - **Codebase-aware chat** — ask questions about bounded PR context via `@open-review`, or use `ask --repo PATH` locally.
 - **Team learnings** — the existing PR comment commands can list and remove stored learnings.
@@ -54,7 +56,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: scale-sync/open-review/action@v1.0.0
+      - uses: scale-sync/open-review/action@v1.1.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -110,6 +112,7 @@ node cli/dist/main.mjs review --url <PR-URL> [options]
 | `--base-url <u>` | —        | Use a custom provider endpoint                        |
 | `--output-file`  | —        | Atomically save the result to a private file          |
 | `--total-tokens` | —        | Limit aggregate model token use                       |
+| `--effort`       | `medium` | Choose `low`, `medium`, or `high` review rounds       |
 | `--expert`       | off      | Comprehensive SOLID, security, and quality review     |
 | `--submit`       | off      | Post findings as GitHub PR comment (inline + summary) |
 | `--quiet`        | off      | Suppress progress messages on stderr                  |

@@ -39,6 +39,14 @@ func TestRejectsMixedModes(t *testing.T) {
 	}
 }
 
+func TestRejectsUnknownReviewEffort(t *testing.T) {
+	var output bytes.Buffer
+	err := run(context.Background(), []string{"review", "--effort", "unbounded"}, &output)
+	if err == nil || !strings.Contains(err.Error(), "effort") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestPreviewShowsSelectedAndSkippedWithoutBridge(t *testing.T) {
 	repo := t.TempDir()
 	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
