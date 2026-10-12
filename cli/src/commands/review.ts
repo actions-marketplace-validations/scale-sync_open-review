@@ -53,6 +53,7 @@ export function registerReviewCommand(program: Command): void {
     .option('--request-seconds <n>', 'Per-request timeout')
     .option('--group-seconds <n>', 'Review deadline')
     .option('--effort <level>', 'Review rounds: low, medium, or high', 'medium')
+    .option('--instruction <text>', 'Explicit review instruction for this run')
     .option('--output-file <path>', 'Write output atomically to a file')
     .option('--expert', 'Comprehensive SOLID/security/quality review')
     .option('--submit', 'Post findings as GitHub PR comment')
@@ -65,6 +66,8 @@ export function registerReviewCommand(program: Command): void {
           throw new Error('output must be text, markdown, or json');
         if (!['low', 'medium', 'high'].includes(opts.effort))
           throw new Error('effort must be low, medium, or high');
+        if (opts.instruction && opts.instruction.length > 8_000)
+          throw new Error('instruction exceeds 8 KB');
         const modelOptions = {
           effort: opts.effort as 'low' | 'medium' | 'high',
           provider: opts.provider as string | undefined,
@@ -97,8 +100,15 @@ export function registerReviewCommand(program: Command): void {
             ].join('\n')
           : '';
 
-        const { instructions: repoInstructions, reviewBuddyConfig } =
-          await loadRepoConfigFromGitHub(client, prMeta.head.sha);
+        const {
+          instructions: repoInstructions,
+          reviewBuddyConfig,
+          ruleSources,
+        } = await loadRepoConfigFromGitHub(
+          client,
+          prMeta.head.sha,
+          files.map((file) => file.filename),
+        );
 
         const prContext: PRContext = {
           owner: client.owner,
@@ -114,6 +124,8 @@ export function registerReviewCommand(program: Command): void {
           diff,
           files: files.map((f) => f.filename),
           instructions: [repoInstructions, expertInstructions].filter(Boolean).join('\n\n'),
+          ruleSources,
+          explicitInstructions: [opts.instruction, expertInstructions].filter(Boolean).join('\n\n'),
           learnings: [],
         };
 

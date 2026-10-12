@@ -78,6 +78,47 @@ func TestPreviewShowsSelectedAndSkippedWithoutBridge(t *testing.T) {
 	}
 }
 
+func TestRulesCheckMatchesReviewPreview(t *testing.T) {
+	repo := t.TempDir()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v: %s", err, out)
+	}
+	if err := os.Mkdir(filepath.Join(repo, "src"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string]string{"src/main.go": "package main\n", "src/AGENTS.md": "Check every error."} {
+		if err := os.WriteFile(filepath.Join(repo, name), []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var checked, preview bytes.Buffer
+	if err := run(context.Background(), []string{"rules", "check", "--repo", repo, "--file", "src/main.go", "--output", "json"}, &checked); err != nil {
+		t.Fatal(err)
+	}
+	if err := run(context.Background(), []string{"review", "--repo", repo, "--preview", "--output", "json"}, &preview); err != nil {
+		t.Fatal(err)
+	}
+	var rule struct {
+		Text string `json:"text"`
+	}
+	var result struct {
+		Rules []struct{ Path, Text string } `json:"rules"`
+	}
+	if json.Unmarshal(checked.Bytes(), &rule) != nil || json.Unmarshal(preview.Bytes(), &result) != nil {
+		t.Fatalf("check=%s preview=%s", checked.String(), preview.String())
+	}
+	found := false
+	for _, item := range result.Rules {
+		if item.Path == "src/main.go" {
+			found = item.Text == rule.Text && strings.Contains(item.Text, "Check every error.")
+		}
+	}
+	if !found {
+		t.Fatalf("check=%s preview=%s", checked.String(), preview.String())
+	}
+}
+
 func TestRejectsOutsideRepository(t *testing.T) {
 	var output bytes.Buffer
 	err := run(context.Background(), []string{"review", "--repo", os.TempDir()}, &output)

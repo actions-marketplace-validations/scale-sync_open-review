@@ -54,6 +54,14 @@ describe('loadRepoConfigFromGitHub', () => {
     expect(result.instructions).toContain('Review Profile: Chill');
     expect(result.instructions).toContain('Be terse.');
     expect(result.reviewBuddyConfig.profile).toBe('chill');
+    expect(result.ruleSources).toEqual([
+      { path: 'REVIEW.md', content: 'Global review rules.' },
+      { path: 'apps/web/AGENTS.md', content: 'Web-specific rules.' },
+      {
+        path: '.reviewbuddy.yaml',
+        content: 'profile: chill\nlabeling_instructions: Be terse.\n',
+      },
+    ]);
   });
 
   it('falls back to default reviewbuddy config when the YAML is invalid', async () => {
@@ -74,5 +82,15 @@ describe('loadRepoConfigFromGitHub', () => {
     const result = await loadRepoConfigFromGitHub(client, 'main');
 
     expect(result.instructions).toContain('Only this one is fetchable.');
+  });
+
+  it('fetches only instruction files relevant to selected review files', async () => {
+    const { client, getFileContent } = makeMockClient(
+      ['REVIEW.md', 'src/AGENTS.md', 'other/AGENTS.md'],
+      { 'REVIEW.md': 'root', 'src/AGENTS.md': 'source', 'other/AGENTS.md': 'other' },
+    );
+    const result = await loadRepoConfigFromGitHub(client, 'head', ['src/main.go']);
+    expect(result.ruleSources.map((source) => source.path)).toEqual(['REVIEW.md', 'src/AGENTS.md']);
+    expect(getFileContent).not.toHaveBeenCalledWith('other/AGENTS.md', 'head');
   });
 });

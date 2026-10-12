@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/scale-sync/open-review/review/internal/agent"
 	"github.com/scale-sync/open-review/review/internal/config"
+	"github.com/scale-sync/open-review/review/internal/config/rules"
 	"github.com/scale-sync/open-review/review/internal/deep"
 	"github.com/scale-sync/open-review/review/internal/diff"
 	"github.com/scale-sync/open-review/review/internal/gitcmd"
@@ -18,6 +20,7 @@ import (
 
 type Options struct {
 	Repo          string
+	Instructions  string
 	Mode          string
 	Base          string
 	Head          string
@@ -50,6 +53,7 @@ func Prepare(ctx context.Context, opts Options) (Request, error) {
 	}
 	req := Request{
 		ContractVersion: model.ContractVersion,
+		Instructions:    opts.Instructions,
 		Mode:            in.Mode,
 		RepoRoot:        in.RepoRoot,
 		BaseRef:         in.BaseRef,
@@ -67,14 +71,28 @@ func Prepare(ctx context.Context, opts Options) (Request, error) {
 	if err != nil {
 		return Request{}, err
 	}
-	req.Instructions = config.Instructions(req.RepoRoot, req.Files)
 	req.WorktreeRoot = req.RepoRoot
+	req.RuleSources, err = rules.LoadLocal(req.RepoRoot, req.Files)
+	if err != nil {
+		return Request{}, err
+	}
+	req.RuleDiagnostics, err = rules.Resolve(req)
+	if err != nil {
+		return Request{}, err
+	}
 	return req, nil
 }
 
 func Run(ctx context.Context, req Request) (Result, error) {
 	if req.ReviewEffort != "" && req.ReviewEffort != "low" && req.ReviewEffort != "medium" && req.ReviewEffort != "high" {
 		return Result{}, fmt.Errorf("unsupported review effort %q", req.ReviewEffort)
+	}
+	if req.RuleDiagnostics == nil {
+		var err error
+		req.RuleDiagnostics, err = rules.Resolve(req)
+		if err != nil {
+			return Result{}, err
+		}
 	}
 	ctx, cancel, usage, err := llm.WithSession(ctx, req.Limits)
 	if err != nil {
@@ -131,5 +149,22 @@ func PrepareExternal(req Request, maxFiles int) (Request, error) {
 		}
 		*change = diff.FromPatch(*change)
 	}
-	return agent.Select(req, agent.Selection{MaxFiles: maxFiles})
+	req, err := agent.Select(req, agent.Selection{MaxFiles: maxFiles})
+	if err != nil {
+		return Request{}, err
+	}
+	req.RuleDiagnostics, err = rules.Resolve(req)
+	return req, err
+}
+
+func CheckRules(repo string, files []string, instructions string) ([]model.RuleDiagnostic, error) {
+	root, err := filepath.Abs(repo)
+	if err != nil {
+		return nil, err
+	}
+	sources, err := rules.LoadLocal(root, files)
+	if err != nil {
+		return nil, err
+	}
+	return rules.Resolve(Request{Files: files, Instructions: instructions, RuleSources: sources, WorktreeRoot: root})
 }

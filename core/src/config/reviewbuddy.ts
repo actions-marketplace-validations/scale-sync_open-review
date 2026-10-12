@@ -12,8 +12,11 @@ export const REVIEWBUDDY_CONFIG_FILE = '.reviewbuddy.yaml';
 /* ------------------------------------------------------------------ */
 
 const PathInstructionSchema = z.object({
-  path: z.string().describe('Glob-style path prefix these instructions apply to, e.g. "apps/web/**"'),
+  path: z
+    .string()
+    .describe('Glob-style path prefix these instructions apply to, e.g. "apps/web/**"'),
   instructions: z.string(),
+  mode: z.enum(['merge', 'replace']).optional(),
 });
 
 export const ReviewBuddyConfigSchema = z.object({
@@ -83,10 +86,8 @@ export async function loadReviewBuddyConfigFromDisk(repoPath: string): Promise<R
  * Render a ReviewBuddy config as a block for the "## Project Review
  * Instructions" section of the review prompt (see fast-review.ts buildPrompt).
  *
- * ponytail: path_instructions are listed for the model rather than enforced
- * per diff-chunk — the prompt pipeline reviews chunks of the whole diff, not
- * one file at a time, so true per-path scoping would need a chunking rewrite.
- * Upgrade if a repo's path_instructions start conflicting across directories.
+ * This block is retained for chat and legacy TypeScript review paths. Go review
+ * resolves the raw file per selected path instead.
  */
 export function buildReviewBuddyInstructions(cfg: ReviewBuddyConfig): string {
   const parts: string[] = [];

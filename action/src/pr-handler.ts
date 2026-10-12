@@ -57,9 +57,10 @@ export async function handlePullRequest(context: Context): Promise<void> {
     const rawMaxFiles = core.getInput('max-files') || '100';
     if (!/^\d+$/.test(rawMaxFiles)) throw new Error('max-files must be a positive integer');
 
-    const { instructions, reviewBuddyConfig } = await loadRepoConfigFromGitHub(
+    const { instructions, reviewBuddyConfig, ruleSources } = await loadRepoConfigFromGitHub(
       client,
       prMeta.head.sha,
+      files.map((file) => file.filename),
     );
 
     const prContext: PRContext = {
@@ -76,6 +77,7 @@ export async function handlePullRequest(context: Context): Promise<void> {
       diff,
       files: files.map((file) => file.filename),
       instructions,
+      ruleSources,
       learnings: [],
     };
 

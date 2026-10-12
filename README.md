@@ -3,9 +3,9 @@
 [![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Open-source, agentic code review tool. v1.1.0 runs coordinated fast and deep reviews in Go for local Git changes and GitHub pull requests, with bounded repository reads, review rounds, related-file context, provider setup, and script-friendly results. TypeScript 7 handles GitHub events, review state, and conversation.
+Open-source, agentic code review tool. v1.2.0 runs coordinated fast and deep reviews in Go for local Git changes and GitHub pull requests, with bounded repository reads, review rounds, per-file rules, provider setup, and script-friendly results. TypeScript 7 handles GitHub events, review state, and conversation.
 
-## v1.1.0 from source
+## v1.2.0 from source
 
 Requires Go 1.23+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
 
@@ -16,6 +16,7 @@ pnpm install --frozen-lockfile
 pnpm build
 go run ./cmd/open-review review --workspace
 go run ./cmd/open-review review --workspace --preview
+go run ./cmd/open-review rules check --file review/review.go
 go run ./cmd/open-review review --workspace --deep
 go run ./cmd/open-review review --workspace --effort high
 go run ./cmd/open-review review --workspace --include '**/*.go' --exclude 'vendor/**'
@@ -26,7 +27,7 @@ go run ./cmd/open-review config test
 go run ./cmd/open-review review --workspace --model gpt-4o --total-tokens 10000 --output json --output-file review.json --quiet
 ```
 
-Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v1.1.0 release notes](_plan_docs/releases/v1.1.0.md).
+Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md) and [v1.2.0 release notes](_plan_docs/releases/v1.2.0.md).
 
 ## Current capabilities
 
@@ -36,6 +37,7 @@ Use `--repo PATH` to inspect another checkout. See [local review details](review
 - **Model choice** — OpenAI, Anthropic, Gemini, and OpenAI-compatible chat endpoints.
 - **Predictable runs** — private provider setup, per-run overrides, token and time limits, usage totals, partial status, and atomic output files.
 - **Bounded context** — pinned repository reads and search, controlled review rounds, and prompt compression.
+- **Explainable rules** — effective instructions resolve per file, with source diagnostics before a model call.
 - **GitHub posting** — findings use PR review comments, while the summary preserves prior review state.
 - **Codebase-aware chat** — ask questions about bounded PR context via `@open-review`, or use `ask --repo PATH` locally.
 - **Team learnings** — the existing PR comment commands can list and remove stored learnings.
@@ -56,7 +58,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: scale-sync/open-review/action@v1.1.0
+      - uses: scale-sync/open-review/action@v1.2.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -187,6 +189,7 @@ profile: chill # chill | assertive (default) — chill skips informational/styli
 path_instructions:
   - path: 'apps/web/**'
     instructions: Favor accessibility findings over micro-optimizations.
+    mode: merge # optional: merge or replace lower-priority rules
 labeling_instructions: Treat lint-fixable style issues as informational, not investigate.
 finishing_touches: '— reviewed by OpenReview'
 ```
@@ -226,7 +229,7 @@ open-review automatically reads these files from your repository to customize re
 4. `.cursorrules`
 5. `.windsurfrules`
 
-Files at subdirectory level are scoped to code in that subtree. Total instruction content is capped at 40KB.
+Files at subdirectory level are scoped to code in that subtree. Go resolves built-in language guidance, optional user rules at `~/.config/open-review/rules.yaml`, repository files and `.reviewbuddy.yaml`, then an explicit `--instruction` in that order. A rule with `mode: replace` clears lower-priority guidance for matching files. Run `open-review rules check --file PATH` or `review --preview --output json` to see each file's effective text and sources without a model call. Include/exclude flags only select files; they are not prompt rules. Total repository rule content is capped at 40KB.
 
 ## Tech Stack
 

@@ -52,6 +52,37 @@ func TestExternalRequestCannotGrantLocalFileReads(t *testing.T) {
 	}
 }
 
+func TestExternalReviewUsesOnlyMatchingRuleSources(t *testing.T) {
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	var prompt string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		if len(body.Messages) > 0 {
+			prompt = body.Messages[0].Content
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`))
+	}))
+	defer server.Close()
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	t.Setenv("MAIN_MODEL", "gpt-4o")
+	patch := "diff --git a/src/main.go b/src/main.go\n@@ -0,0 +1 @@\n+bad\n"
+	req, err := PrepareExternal(Request{ContractVersion: 2, Mode: "branch", RepoRoot: "org/repo", RuleSources: []model.RuleSource{{Path: "src/AGENTS.md", Content: "Check source errors"}, {Path: "other/AGENTS.md", Content: "Unrelated secret guidance"}}, Changes: []diff.Change{{Path: "src/main.go", Status: "modified", Patch: patch}}}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := Run(context.Background(), req)
+	if err != nil || result.Status != "complete" || !strings.Contains(prompt, "Check source errors") || strings.Contains(prompt, "Unrelated secret guidance") {
+		t.Fatalf("result=%+v prompt=%q err=%v", result, prompt, err)
+	}
+}
+
 func TestDeepReviewUsesSandboxAuditAndGoValidation(t *testing.T) {
 	t.Setenv("GITHUB_ACTIONS", "false")
 	bin := t.TempDir()

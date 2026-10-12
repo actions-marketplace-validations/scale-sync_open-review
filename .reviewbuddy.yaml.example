@@ -1,22 +1,21 @@
 # OpenReview per-repo config — copy to `.reviewbuddy.yaml` at your repo root
 # and commit it. Every field is optional; omit what you don't need.
 #
-# Config hierarchy: .reviewbuddy.yaml > .env > built-in defaults.
-# Read straight from the PR's head commit via the GitHub API — no local
-# checkout required, so it applies to the CLI, the Action, and
-# @openreview comment commands alike.
+# Review guidance order: built-in, local CLI user rules, repository files,
+# then an explicit run instruction. The Action reads this file at the PR head.
 
 # chill   — only report severe/non-severe bugs; skip informational and
 #           purely stylistic "investigate" flags unless they carry real risk.
 # assertive (default) — today's thorough behavior, unchanged.
 profile: assertive
 
-# Extra guidance scoped to a path prefix. Listed for the model alongside the
-# diff — not a hard per-file filter.
+# Extra review guidance applies only to matching files. Use mode: replace
+# to discard lower-priority guidance for those files; merge is the default.
 path_instructions: []
 # path_instructions:
 #   - path: 'apps/web/**'
 #     instructions: Favor accessibility findings over micro-optimizations.
+#     mode: merge
 #   - path: 'packages/api/**'
 #     instructions: Flag any handler missing an auth check.
 

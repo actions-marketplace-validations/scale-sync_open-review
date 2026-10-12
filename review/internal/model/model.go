@@ -19,27 +19,40 @@ type CoverageEntry struct {
 }
 
 type Request struct {
-	ContractVersion int             `json:"contractVersion"`
-	Mode            string          `json:"mode"`
-	RepoRoot        string          `json:"repoRoot"`
-	BaseRef         string          `json:"baseRef,omitempty"`
-	HeadRef         string          `json:"headRef,omitempty"`
-	BaseSHA         string          `json:"baseSha,omitempty"`
-	MergeBaseSHA    string          `json:"mergeBaseSha,omitempty"`
-	HeadSHA         string          `json:"headSha,omitempty"`
-	CommitSHA       string          `json:"commitSha,omitempty"`
-	Parents         []string        `json:"parents,omitempty"`
-	Diff            string          `json:"diff"`
-	Files           []string        `json:"files"`
-	Title           string          `json:"title,omitempty"`
-	Instructions    string          `json:"instructions,omitempty"`
-	ReviewKind      string          `json:"reviewKind,omitempty"`
-	ReviewEffort    string          `json:"reviewEffort,omitempty"`
-	WorktreeRoot    string          `json:"worktreeRoot,omitempty"`
-	Model           ModelIdentity   `json:"model,omitempty"`
-	Limits          Limits          `json:"limits,omitempty"`
-	Changes         []diff.Change   `json:"changes,omitempty"`
-	Coverage        []CoverageEntry `json:"coverage,omitempty"`
+	ContractVersion int              `json:"contractVersion"`
+	Mode            string           `json:"mode"`
+	RepoRoot        string           `json:"repoRoot"`
+	BaseRef         string           `json:"baseRef,omitempty"`
+	HeadRef         string           `json:"headRef,omitempty"`
+	BaseSHA         string           `json:"baseSha,omitempty"`
+	MergeBaseSHA    string           `json:"mergeBaseSha,omitempty"`
+	HeadSHA         string           `json:"headSha,omitempty"`
+	CommitSHA       string           `json:"commitSha,omitempty"`
+	Parents         []string         `json:"parents,omitempty"`
+	Diff            string           `json:"diff"`
+	Files           []string         `json:"files"`
+	Title           string           `json:"title,omitempty"`
+	Instructions    string           `json:"instructions,omitempty"`
+	RuleSources     []RuleSource     `json:"ruleSources,omitempty"`
+	RuleDiagnostics []RuleDiagnostic `json:"ruleDiagnostics,omitempty"`
+	ReviewKind      string           `json:"reviewKind,omitempty"`
+	ReviewEffort    string           `json:"reviewEffort,omitempty"`
+	WorktreeRoot    string           `json:"worktreeRoot,omitempty"`
+	Model           ModelIdentity    `json:"model,omitempty"`
+	Limits          Limits           `json:"limits,omitempty"`
+	Changes         []diff.Change    `json:"changes,omitempty"`
+	Coverage        []CoverageEntry  `json:"coverage,omitempty"`
+}
+
+type RuleSource struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+type RuleDiagnostic struct {
+	Path    string   `json:"path"`
+	Sources []string `json:"sources"`
+	Text    string   `json:"text"`
 }
 
 type ModelIdentity struct {

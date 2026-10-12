@@ -150586,7 +150586,8 @@ function buildInstructionResult(files) {
 const REVIEWBUDDY_CONFIG_FILE = ".reviewbuddy.yaml";
 const PathInstructionSchema = object({
 	path: string().describe("Glob-style path prefix these instructions apply to, e.g. \"apps/web/**\""),
-	instructions: string()
+	instructions: string(),
+	mode: _enum(["merge", "replace"]).optional()
 });
 const ReviewBuddyConfigSchema = object({
 	/** chill = only severe/non-severe bugs; assertive (default) = current thorough behavior. */
@@ -150620,10 +150621,8 @@ function parseReviewBuddyConfig(yamlContent) {
 * Render a ReviewBuddy config as a block for the "## Project Review
 * Instructions" section of the review prompt (see fast-review.ts buildPrompt).
 *
-* ponytail: path_instructions are listed for the model rather than enforced
-* per diff-chunk — the prompt pipeline reviews chunks of the whole diff, not
-* one file at a time, so true per-path scoping would need a chunking rewrite.
-* Upgrade if a repo's path_instructions start conflicting across directories.
+* This block is retained for chat and legacy TypeScript review paths. Go review
+* resolves the raw file per selected path instead.
 */
 function buildReviewBuddyInstructions(cfg) {
 	const parts = [];
@@ -150638,19 +150637,20 @@ function buildReviewBuddyInstructions(cfg) {
 * checkout required, so this works from the CLI (which never clones) and
 * from the Action/comment handlers alike.
 */
-async function loadRepoConfigFromGitHub(client, ref) {
+async function loadRepoConfigFromGitHub(client, ref, selectedFiles) {
 	let tree;
 	try {
 		tree = await client.getFileTree(ref);
 	} catch {
 		return {
 			instructions: "",
-			reviewBuddyConfig: DEFAULT_REVIEWBUDDY_CONFIG
+			reviewBuddyConfig: DEFAULT_REVIEWBUDDY_CONFIG,
+			ruleSources: []
 		};
 	}
-	const instructionPaths = tree.filter((p) => INSTRUCTION_FILE_NAMES.has(basename$1(p)));
+	const instructionPaths = tree.filter((p) => INSTRUCTION_FILE_NAMES.has(basename$1(p)) && (!selectedFiles || !p.includes("/") || selectedFiles.some((file) => file.startsWith(p.slice(0, p.lastIndexOf("/") + 1)))));
 	const reviewBuddyPath = tree.find((p) => p === REVIEWBUDDY_CONFIG_FILE);
-	const { globalInstructions, scopedInstructions } = buildInstructionResult(sortInstructionFiles((await Promise.all(instructionPaths.map(async (relativePath) => {
+	const instructionFiles = sortInstructionFiles((await Promise.all(instructionPaths.map(async (relativePath) => {
 		try {
 			const content = await client.getFileContent(relativePath, ref);
 			return {
@@ -150661,10 +150661,17 @@ async function loadRepoConfigFromGitHub(client, ref) {
 		} catch {
 			return null;
 		}
-	}))).filter((f) => f !== null)));
+	}))).filter((f) => f !== null));
+	const { globalInstructions, scopedInstructions } = buildInstructionResult(instructionFiles);
 	let reviewBuddyConfig = DEFAULT_REVIEWBUDDY_CONFIG;
+	let reviewBuddySource;
 	if (reviewBuddyPath) try {
-		reviewBuddyConfig = parseReviewBuddyConfig(await client.getFileContent(reviewBuddyPath, ref));
+		const content = await client.getFileContent(reviewBuddyPath, ref);
+		reviewBuddySource = {
+			path: reviewBuddyPath,
+			content
+		};
+		reviewBuddyConfig = parseReviewBuddyConfig(content);
 	} catch {}
 	const parts = [];
 	if (globalInstructions) parts.push("## Project Review Instructions", globalInstructions);
@@ -150676,7 +150683,11 @@ async function loadRepoConfigFromGitHub(client, ref) {
 	if (reviewBuddyBlock) parts.push("", reviewBuddyBlock);
 	return {
 		instructions: parts.join("\n").trim(),
-		reviewBuddyConfig
+		reviewBuddyConfig,
+		ruleSources: [...instructionFiles.map((file) => ({
+			path: file.relativePath,
+			content: file.content
+		})), ...reviewBuddySource ? [reviewBuddySource] : []]
 	};
 }
 const PR_URL_RE = /github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/;
@@ -151341,7 +151352,8 @@ function toGoRequest(pr, files, reviewKind = "fast", options = {}) {
 		baseSha: pr.metadata.baseSha,
 		headSha: pr.metadata.headSha,
 		title: pr.metadata.title,
-		instructions: pr.instructions,
+		instructions: pr.ruleSources ? pr.explicitInstructions ?? process.env.OPEN_REVIEW_INSTRUCTION ?? "" : pr.instructions,
+		...pr.ruleSources ? { ruleSources: pr.ruleSources } : {},
 		reviewKind,
 		reviewEffort: options.effort || process.env.OPEN_REVIEW_EFFORT || "medium",
 		model: {
@@ -151787,6 +151799,7 @@ function injectInputsToEnv() {
 		["provider", "OPEN_REVIEW_PROVIDER"],
 		["base-url", "OPEN_REVIEW_BASE_URL"],
 		["effort", "OPEN_REVIEW_EFFORT"],
+		["instruction", "OPEN_REVIEW_INSTRUCTION"],
 		["prompt-tokens", "OPEN_REVIEW_PROMPT_TOKENS"],
 		["output-tokens", "OPEN_REVIEW_OUTPUT_TOKENS"],
 		["total-tokens", "OPEN_REVIEW_TOTAL_TOKENS"],
@@ -151853,7 +151866,7 @@ async function handleComment(context) {
 			const prMeta = await client.getPR(prNumber);
 			const files = await client.getPRFiles(prNumber);
 			const diff = await client.getPRDiff(prNumber);
-			const { instructions } = await loadRepoConfigFromGitHub(client, prMeta.head.sha);
+			const { instructions, ruleSources } = await loadRepoConfigFromGitHub(client, prMeta.head.sha, files.map((file) => file.filename));
 			const prContext = {
 				owner,
 				repo,
@@ -151868,6 +151881,7 @@ async function handleComment(context) {
 				diff,
 				files: files.map((f) => f.filename),
 				instructions,
+				ruleSources,
 				learnings: []
 			};
 			const result = await runGoReview(prContext, files, 100, "deep");
@@ -151899,7 +151913,7 @@ async function handleComment(context) {
 			const prMeta = await client.getPR(prNumber);
 			const files = await client.getPRFiles(prNumber);
 			const diff = await client.getPRDiff(prNumber);
-			const { instructions, reviewBuddyConfig } = await loadRepoConfigFromGitHub(client, prMeta.head.sha);
+			const { instructions, reviewBuddyConfig, ruleSources } = await loadRepoConfigFromGitHub(client, prMeta.head.sha, files.map((file) => file.filename));
 			const prContext = {
 				owner,
 				repo,
@@ -151914,6 +151928,7 @@ async function handleComment(context) {
 				diff,
 				files: files.map((f) => f.filename),
 				instructions,
+				ruleSources,
 				learnings: []
 			};
 			const result = await runGoReview(prContext, files);
@@ -152043,7 +152058,7 @@ async function handlePullRequest(context) {
 		const diff = await client.getPRDiff(prNumber);
 		const rawMaxFiles = getInput("max-files") || "100";
 		if (!/^\d+$/.test(rawMaxFiles)) throw new Error("max-files must be a positive integer");
-		const { instructions, reviewBuddyConfig } = await loadRepoConfigFromGitHub(client, prMeta.head.sha);
+		const { instructions, reviewBuddyConfig, ruleSources } = await loadRepoConfigFromGitHub(client, prMeta.head.sha, files.map((file) => file.filename));
 		const prContext = {
 			owner,
 			repo,
@@ -152058,6 +152073,7 @@ async function handlePullRequest(context) {
 			diff,
 			files: files.map((file) => file.filename),
 			instructions,
+			ruleSources,
 			learnings: []
 		};
 		const result = await runGoReview(prContext, files, Number(rawMaxFiles));

@@ -39,6 +39,18 @@ describe('Go review request', () => {
     expect(request.changes[1].patch).toContain('Binary files differ');
     expect(request.title).toBe('Fix bug');
     expect(request.instructions).toBe('Check errors');
+    const withRules = toGoRequest(
+      {
+        ...pr,
+        ruleSources: [{ path: 'src/AGENTS.md', content: 'Check source errors' }],
+        explicitInstructions: 'Check all errors',
+      },
+      files,
+    );
+    expect(withRules.instructions).toBe('Check all errors');
+    expect(withRules.ruleSources).toEqual([
+      { path: 'src/AGENTS.md', content: 'Check source errors' },
+    ]);
     expect(request.reviewKind).toBe('fast');
     expect(request.reviewEffort).toBe('medium');
     expect(toGoRequest(pr, files, 'deep').reviewKind).toBe('deep');

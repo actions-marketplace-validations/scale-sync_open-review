@@ -93,6 +93,8 @@ export interface PRContext {
     author: string;
   };
   instructions: string;
+  ruleSources?: Array<{ path: string; content: string }>;
+  explicitInstructions?: string;
   learnings: string[];
 }
 

@@ -38,6 +38,9 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if len(args) > 0 && args[0] == "config" {
 		return runConfig(ctx, args[1:], output)
 	}
+	if len(args) > 0 && args[0] == "rules" {
+		return runRules(args[1:], output)
+	}
 	if len(args) > 0 && args[0] == "completion" {
 		return runCompletion(args[1:], output)
 	}
@@ -45,7 +48,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 		return runJSON(ctx, args[1:], os.Stdin, output)
 	}
 	if len(args) == 0 || args[0] != "review" {
-		return errors.New("usage: open-review review|review-json|config|completion")
+		return errors.New("usage: open-review review|review-json|rules|config|completion")
 	}
 	flags := flag.NewFlagSet("review", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -57,6 +60,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	format := flags.String("output", "text", "text or json")
 	outputFile := flags.String("output-file", "", "write output atomically to a file")
 	quiet := flags.Bool("quiet", false, "suppress progress messages")
+	instruction := flags.String("instruction", "", "explicit review instruction")
 	provider := flags.String("provider", "", "model provider")
 	modelName := flags.String("model", "", "model name")
 	baseURL := flags.String("base-url", "", "provider endpoint")
@@ -86,6 +90,9 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if *effort != "low" && *effort != "medium" && *effort != "high" {
 		return fmt.Errorf("unsupported review effort %q", *effort)
 	}
+	if len(*instruction) > 8_000 {
+		return errors.New("instruction exceeds 8 KB")
+	}
 	if *maxFiles < 1 || *maxFileBytes < 1 || *maxPatchBytes < 1024 || *maxPatchBytes > 38_000 {
 		return errors.New("review limits must be positive and max-patch-bytes must be between 1024 and 38000")
 	}
@@ -98,7 +105,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if *workspace && mode != "workspace" || *commit != "" && (*base != "" || *head != "") {
 		return errors.New("choose only one review mode")
 	}
-	req, err := review.Prepare(ctx, review.Options{Repo: *repo, Mode: mode, Base: *base, Head: *head, Commit: *commit, Include: include, Exclude: exclude, MaxFiles: *maxFiles, MaxFileBytes: *maxFileBytes, MaxPatchBytes: *maxPatchBytes})
+	req, err := review.Prepare(ctx, review.Options{Repo: *repo, Instructions: *instruction, Mode: mode, Base: *base, Head: *head, Commit: *commit, Include: include, Exclude: exclude, MaxFiles: *maxFiles, MaxFileBytes: *maxFileBytes, MaxPatchBytes: *maxPatchBytes})
 	if err != nil {
 		return err
 	}
@@ -115,11 +122,17 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 				Mode     string `json:"mode"`
 				RepoRoot string `json:"repoRoot"`
 				Coverage any    `json:"coverage"`
-			}{req.Mode, req.RepoRoot, req.Coverage}); err != nil {
+				Rules    any    `json:"rules"`
+			}{req.Mode, req.RepoRoot, req.Coverage, req.RuleDiagnostics}); err != nil {
 				return err
 			}
-		} else if err := printCoverage(&rendered, req.Coverage); err != nil {
-			return err
+		} else {
+			if err := printCoverage(&rendered, req.Coverage); err != nil {
+				return err
+			}
+			for _, rule := range req.RuleDiagnostics {
+				fmt.Fprintf(&rendered, "Rule %s: %s\n", rule.Path, strings.Join(rule.Sources, " -> "))
+			}
 		}
 		return writeOutput(output, *outputFile, rendered.Bytes())
 	}

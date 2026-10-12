@@ -10,6 +10,7 @@ export function injectInputsToEnv(): void {
     ['provider', 'OPEN_REVIEW_PROVIDER'],
     ['base-url', 'OPEN_REVIEW_BASE_URL'],
     ['effort', 'OPEN_REVIEW_EFFORT'],
+    ['instruction', 'OPEN_REVIEW_INSTRUCTION'],
     ['prompt-tokens', 'OPEN_REVIEW_PROMPT_TOKENS'],
     ['output-tokens', 'OPEN_REVIEW_OUTPUT_TOKENS'],
     ['total-tokens', 'OPEN_REVIEW_TOTAL_TOKENS'],

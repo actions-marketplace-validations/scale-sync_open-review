@@ -43,6 +43,23 @@
         "sentBytes": { "type": "integer", "minimum": 0 }
       }
     },
+    "ruleSource": {
+      "type": "object",
+      "required": ["path", "content"],
+      "properties": {
+        "path": { "type": "string" },
+        "content": { "type": "string" }
+      }
+    },
+    "ruleDiagnostic": {
+      "type": "object",
+      "required": ["path", "sources", "text"],
+      "properties": {
+        "path": { "type": "string" },
+        "sources": { "type": "array", "items": { "type": "string" } },
+        "text": { "type": "string" }
+      }
+    },
     "request": {
       "type": "object",
       "required": ["contractVersion", "mode", "repoRoot", "diff", "files"],
@@ -61,6 +78,8 @@
         "files": { "type": "array", "items": { "type": "string" } },
         "title": { "type": "string" },
         "instructions": { "type": "string" },
+        "ruleSources": { "type": "array", "items": { "$ref": "#/$defs/ruleSource" } },
+        "ruleDiagnostics": { "type": "array", "items": { "$ref": "#/$defs/ruleDiagnostic" } },
         "reviewKind": { "enum": ["fast", "deep"] },
         "reviewEffort": { "enum": ["low", "medium", "high"] },
         "worktreeRoot": { "type": "string" },

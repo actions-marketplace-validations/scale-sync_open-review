@@ -57,7 +57,10 @@ export function toGoRequest(
     baseSha: pr.metadata.baseSha,
     headSha: pr.metadata.headSha,
     title: pr.metadata.title,
-    instructions: pr.instructions,
+    instructions: pr.ruleSources
+      ? (pr.explicitInstructions ?? process.env.OPEN_REVIEW_INSTRUCTION ?? '')
+      : pr.instructions,
+    ...(pr.ruleSources ? { ruleSources: pr.ruleSources } : {}),
     reviewKind,
     reviewEffort: options.effort || process.env.OPEN_REVIEW_EFFORT || 'medium',
     model: {

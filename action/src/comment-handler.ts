@@ -80,7 +80,11 @@ export async function handleComment(context: Context): Promise<void> {
       const prMeta = await client.getPR(prNumber);
       const files = await client.getPRFiles(prNumber);
       const diff = await client.getPRDiff(prNumber);
-      const { instructions } = await loadRepoConfigFromGitHub(client, prMeta.head.sha);
+      const { instructions, ruleSources } = await loadRepoConfigFromGitHub(
+        client,
+        prMeta.head.sha,
+        files.map((file) => file.filename),
+      );
 
       const prContext: PRContext = {
         owner,
@@ -96,6 +100,7 @@ export async function handleComment(context: Context): Promise<void> {
         diff,
         files: files.map((f) => f.filename),
         instructions,
+        ruleSources,
         learnings: [],
       };
 
@@ -148,9 +153,10 @@ export async function handleComment(context: Context): Promise<void> {
       const files = await client.getPRFiles(prNumber);
       const diff = await client.getPRDiff(prNumber);
 
-      const { instructions, reviewBuddyConfig } = await loadRepoConfigFromGitHub(
+      const { instructions, reviewBuddyConfig, ruleSources } = await loadRepoConfigFromGitHub(
         client,
         prMeta.head.sha,
+        files.map((file) => file.filename),
       );
 
       const prContext: PRContext = {
@@ -167,6 +173,7 @@ export async function handleComment(context: Context): Promise<void> {
         diff,
         files: files.map((f) => f.filename),
         instructions,
+        ruleSources,
         learnings: [],
       };
 

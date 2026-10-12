@@ -20,6 +20,7 @@ export interface RemoteRepoConfig {
   /** Combined instructions block, ready to drop into PRContext.instructions. */
   instructions: string;
   reviewBuddyConfig: ReviewBuddyConfig;
+  ruleSources: Array<{ path: string; content: string }>;
 }
 
 /**
@@ -31,15 +32,22 @@ export interface RemoteRepoConfig {
 export async function loadRepoConfigFromGitHub(
   client: GitHubClient,
   ref: string,
+  selectedFiles?: string[],
 ): Promise<RemoteRepoConfig> {
   let tree: string[];
   try {
     tree = await client.getFileTree(ref);
   } catch {
-    return { instructions: '', reviewBuddyConfig: DEFAULT_REVIEWBUDDY_CONFIG };
+    return { instructions: '', reviewBuddyConfig: DEFAULT_REVIEWBUDDY_CONFIG, ruleSources: [] };
   }
 
-  const instructionPaths = tree.filter((p) => INSTRUCTION_FILE_NAMES.has(basename(p)));
+  const instructionPaths = tree.filter(
+    (p) =>
+      INSTRUCTION_FILE_NAMES.has(basename(p)) &&
+      (!selectedFiles ||
+        !p.includes('/') ||
+        selectedFiles.some((file) => file.startsWith(p.slice(0, p.lastIndexOf('/') + 1)))),
+  );
   const reviewBuddyPath = tree.find((p) => p === REVIEWBUDDY_CONFIG_FILE);
 
   const fetched = await Promise.all(
@@ -54,14 +62,18 @@ export async function loadRepoConfigFromGitHub(
   );
 
   const instructionFiles = sortInstructionFiles(
-    fetched.filter((f): f is { relativePath: string; depth: number; content: string } => f !== null),
+    fetched.filter(
+      (f): f is { relativePath: string; depth: number; content: string } => f !== null,
+    ),
   );
   const { globalInstructions, scopedInstructions } = buildInstructionResult(instructionFiles);
 
   let reviewBuddyConfig = DEFAULT_REVIEWBUDDY_CONFIG;
+  let reviewBuddySource: { path: string; content: string } | undefined;
   if (reviewBuddyPath) {
     try {
       const content = await client.getFileContent(reviewBuddyPath, ref);
+      reviewBuddySource = { path: reviewBuddyPath, content };
       reviewBuddyConfig = parseReviewBuddyConfig(content);
     } catch {
       // Invalid or unreadable — fall back to defaults rather than failing the review.
@@ -84,5 +96,9 @@ export async function loadRepoConfigFromGitHub(
   return {
     instructions: parts.join('\n').trim(),
     reviewBuddyConfig,
+    ruleSources: [
+      ...instructionFiles.map((file) => ({ path: file.relativePath, content: file.content })),
+      ...(reviewBuddySource ? [reviewBuddySource] : []),
+    ],
   };
 }
