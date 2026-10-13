@@ -16,6 +16,7 @@ function makeMockClient() {
     owner: 'test-owner',
     repo: 'test-repo',
     api,
+    getPR: vi.fn().mockResolvedValue({ head: { sha: 'head-sha-2' } }),
   } as unknown as GitHubClient;
 
   return { client, api };
@@ -36,6 +37,7 @@ function makeFinding(
     endLine: line,
     title,
     explanation: 'Test explanation',
+    verification: 'verified',
     source: 'ai',
     citations: [],
   };
@@ -61,7 +63,7 @@ function makePr(): PRContext {
     owner: 'test-owner',
     repo: 'test-repo',
     prNumber: 7,
-    diff: '',
+    diff: 'diff --git a/src/b.ts b/src/b.ts\n--- a/src/b.ts\n+++ b/src/b.ts\n@@ -1,0 +12,2 @@\n+first\n+second\ndiff --git a/src/index.ts b/src/index.ts\n--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1,0 +10 @@\n+line',
     files: ['src/index.ts'],
     metadata: {
       title: 'Test PR',
@@ -121,6 +123,7 @@ describe('postReviewResults', () => {
     expect(reviewUrl).toContain('/pulls/7/reviews');
     expect(reviewBody.comments).toHaveLength(1);
     expect(reviewBody.comments[0].path).toBe('src/b.ts');
+    expect(reviewBody.commit_id).toBe('head-sha-2');
 
     expect(summary.resolvedCount).toBe(1);
     expect(summary.newCount).toBe(1);
@@ -169,6 +172,59 @@ describe('postReviewResults', () => {
       api.post.mock.calls.filter(([url]) => String(url).includes('/pulls/7/reviews')),
     ).toHaveLength(1);
     expect(inlineBody).toContain('<!-- openreview-finding:');
+  });
+});
+
+describe('safe inline positions', () => {
+  it('posts a multi-line suggestion on the pinned head and keeps uncertain findings in the summary', async () => {
+    const { client, api } = makeMockClient();
+    const poster = new CommentPoster(client);
+    api.get.mockResolvedValue({ data: [] });
+    api.post.mockResolvedValue({ data: {} });
+    const finding = {
+      ...makeFinding('range', 'src/b.ts', 12),
+      endLine: 13,
+      suggestedFix: 'fixed();',
+      verification: 'verified' as const,
+    };
+    const uncertain = {
+      ...makeFinding('uncertain', 'src/b.ts', 99),
+      verification: 'uncertain' as const,
+      anchorStatus: 'unanchored' as const,
+      verificationReason: 'outside added lines',
+    };
+    await poster.postReviewResults(7, makePr(), [finding, uncertain], makeSummary(2));
+    const review = api.post.mock.calls.find(([url]) =>
+      String(url).includes('/pulls/7/reviews'),
+    )![1];
+    expect(review.comments).toHaveLength(1);
+    expect(review.comments[0]).toMatchObject({ line: 13, start_line: 12, start_side: 'RIGHT' });
+    expect(review.comments[0].body).toContain('```suggestion');
+    expect(
+      api.post.mock.calls.find(([url]) => String(url).includes('/issues/7/comments'))![1].body,
+    ).toContain('needs checking');
+  });
+
+  it('rejects a moved head before posting', async () => {
+    const { client, api } = makeMockClient();
+    vi.mocked(client.getPR).mockResolvedValue({ head: { sha: 'new-head' } } as never);
+    await expect(
+      new CommentPoster(client).postReview(7, [makeFinding('moved')], 'head-sha-2', makePr().diff),
+    ).rejects.toThrow('head changed');
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('keeps unchanged and invalid ranges out of the inline review', async () => {
+    const { client, api } = makeMockClient();
+    api.get.mockResolvedValue({ data: [] });
+    const poster = new CommentPoster(client);
+    await poster.postReview(
+      7,
+      [makeFinding('outside', 'src/b.ts', 99)],
+      'head-sha-2',
+      makePr().diff,
+    );
+    expect(api.post).not.toHaveBeenCalled();
   });
 });
 

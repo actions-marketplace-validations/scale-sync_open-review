@@ -151069,15 +151069,18 @@ function formatSummaryComment(summary, state) {
 	if (summary.narrative) lines.push(summary.narrative, "");
 	if (resolvedCount > 0 && summary.resolvedFindings?.length) lines.push("<details>", `<summary>✅ ${resolvedCount} resolved</summary>`, "", ...summary.resolvedFindings.map(formatFindingListItem), "", "</details>", "");
 	const openFindings = summary.openFindings ?? [];
-	if (openCount > 0 && openFindings.length > 0) lines.push("<details>", `<summary>${summary.approved ? "ℹ️" : "🔎"} ${openCount} open</summary>`, "", ...openFindings.map((f) => formatFindingListItem(f)), "", "</details>", "");
+	if (openCount > 0 && openFindings.length > 0) lines.push("<details>", `<summary>${summary.approved ? "ℹ️" : "🔎"} ${openCount} open</summary>`, "", ...openFindings.map((f) => `${formatFindingListItem(f)}${f.verification === "uncertain" ? ` (needs checking: ${f.verificationReason ?? "unanchored"})` : ""}`), "", "</details>", "");
 	else if (openCount === 0) lines.push("✅ No open findings.", "");
 	lines.push(`<sub>Files reviewed: ${summary.filesReviewed} · Duration: ${summary.duration}</sub>`);
 	if (summary.finishingTouches) lines.push("", summary.finishingTouches);
 	return lines.join("\n");
 }
 function formatInlineComment(finding) {
-	let body = `${SEVERITY_BADGES[finding.severity]}: ${finding.title}\n\n${finding.explanation}`;
-	if (finding.suggestedFix) body += `\n\n**Suggested fix:**\n\`\`\`suggestion\n${finding.suggestedFix}\n\`\`\``;
+	let body = `${SEVERITY_BADGES[finding.severity]}: ${finding.title}\n\n${finding.explanation}\n\n${finding.file}:${finding.startLine}${finding.endLine > finding.startLine ? `-${finding.endLine}` : ""}`;
+	if (finding.suggestedFix) {
+		const fence = finding.suggestedFix.includes("```") ? "````" : "```";
+		body += `\n\n**Suggested fix:**\n${fence}${fence === "```" ? "suggestion" : "text"}\n${finding.suggestedFix}\n${fence}`;
+	}
 	if (finding.source === "linter" || finding.source === "both") {
 		const linter = finding.linterName ?? "linter";
 		const label = finding.source === "both" ? `AI + ${linter}` : linter;
@@ -151094,18 +151097,29 @@ var CommentPoster = class {
 	* Post all findings as a single batch review.
 	* Review state is always COMMENT — never auto-approve or request changes.
 	*/
-	async postReview(prNumber, findings, headSha = "") {
+	async postReview(prNumber, findings, headSha = "", diff = "") {
 		if (findings.length === 0) return;
+		const current = await this.client.getPR(prNumber);
+		if (!headSha || current.head.sha !== headSha) throw new Error("PR head changed before inline comments could be posted");
+		const added = changedLines(diff);
 		const existing = await this.fetchInlineMarkers(prNumber);
-		const comments = findings.filter((f) => !existing.has(this.inlineMarker(headSha, f))).map((f) => ({
+		const comments = findings.filter((f) => f.verification === "verified" && f.anchorStatus !== "unanchored").filter((f) => {
+			const lines = added.get(f.file);
+			return lines && f.startLine > 0 && f.endLine >= f.startLine && Array.from({ length: f.endLine - f.startLine + 1 }, (_, i) => f.startLine + i).every((line) => lines.has(line));
+		}).filter((f) => !existing.has(this.inlineMarker(headSha, f))).map((f) => ({
 			path: f.file,
-			line: f.startLine,
+			line: f.endLine,
+			...f.startLine < f.endLine ? {
+				start_line: f.startLine,
+				start_side: "RIGHT"
+			} : {},
 			side: "RIGHT",
 			body: `${formatInlineComment(f)}\n\n${this.inlineMarker(headSha, f)}`
 		}));
 		if (comments.length === 0) return;
 		await this.client["api"].post(`/repos/${this.client.owner}/${this.client.repo}/pulls/${prNumber}/reviews`, {
 			event: "COMMENT",
+			commit_id: headSha,
 			comments
 		});
 	}
@@ -151117,7 +151131,7 @@ var CommentPoster = class {
 		const summary = enrichReviewSummary(pr, findings, baseSummary, await this.fetchReviewState(prNumber));
 		const state = buildReviewState(pr, findings);
 		const newFindings = summary.newFindings ?? findings;
-		if (newFindings.length > 0) await this.postReview(prNumber, newFindings, pr.metadata.headSha);
+		if (newFindings.length > 0) await this.postReview(prNumber, newFindings, pr.metadata.headSha, pr.diff);
 		await this.postSummaryComment(prNumber, summary, state);
 		return summary;
 	}
@@ -151205,6 +151219,31 @@ var CommentPoster = class {
 		return null;
 	}
 };
+function changedLines(diff) {
+	const result = /* @__PURE__ */ new Map();
+	let path = "";
+	let line = 0;
+	for (const text of diff.split("\n")) {
+		if (text.startsWith("diff --git ")) {
+			path = "";
+			continue;
+		}
+		if (text.startsWith("+++ b/")) {
+			path = text.slice(6);
+			result.set(path, /* @__PURE__ */ new Set());
+			continue;
+		}
+		const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
+		if (hunk) {
+			line = Number(hunk[1]);
+			continue;
+		}
+		if (!path) continue;
+		if (text.startsWith("+") && !text.startsWith("+++")) result.get(path).add(line++);
+		else if (text.startsWith(" ")) line++;
+	}
+	return result;
+}
 function detectProvider(modelId) {
 	if (modelId.startsWith("gpt-") || modelId.startsWith("o1") || modelId.startsWith("o3")) return "openai";
 	if (modelId.startsWith("claude-")) return "anthropic";

@@ -117,7 +117,7 @@ func TestDeepReviewUsesSandboxAuditAndGoValidation(t *testing.T) {
 	t.Setenv("MAIN_MODEL", "gpt-4o")
 	patch := "diff --git a/main.go b/main.go\n@@ -0,0 +1 @@\n+bad\n"
 	result, err := Run(context.Background(), Request{ContractVersion: 2, ReviewKind: "deep", Mode: "branch", RepoRoot: "org/repo", Files: []string{"main.go"}, Diff: patch, Changes: []diff.Change{diff.FromPatch(diff.Change{Path: "main.go", Patch: patch})}})
-	if err != nil || result.Status != "complete" || len(result.Audit) != 1 || result.Audit[0].Status != "complete" || !strings.Contains(finalPrompt, "verified condition") || !strings.Contains(string(result.Summary), `"mode":"rlm"`) {
+	if err != nil || result.Status != "complete" || len(result.Audit) != 2 || result.Audit[0].Status != "complete" || result.Audit[1].Stage != "finding_verification" || !strings.Contains(finalPrompt, "verified condition") || !strings.Contains(string(result.Summary), `"mode":"rlm"`) {
 		t.Fatalf("result = %+v, prompt = %q, err = %v", result, finalPrompt, err)
 	}
 }
@@ -133,7 +133,7 @@ func TestDeepReviewWithoutDenoRecordsUnverifiedPass(t *testing.T) {
 	t.Setenv("OPENAI_BASE_URL", server.URL)
 	t.Setenv("MAIN_MODEL", "gpt-4o")
 	result, err := Run(context.Background(), Request{ContractVersion: 2, ReviewKind: "deep", RepoRoot: "org/repo", Files: []string{"main.go"}, Diff: "diff --git a/main.go b/main.go\n+bad\n"})
-	if err != nil || result.Status != "complete" || len(result.Audit) != 1 || result.Audit[0].Status != "unavailable" {
+	if err != nil || result.Status != "complete" || len(result.Audit) != 2 || result.Audit[0].Status != "unavailable" || result.Audit[1].Stage != "finding_verification" {
 		t.Fatalf("result = %+v, err = %v", result, err)
 	}
 }

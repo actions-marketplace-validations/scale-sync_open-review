@@ -29,6 +29,10 @@ export interface ReviewFinding {
   title: string;
   explanation: string;
   suggestedFix?: string;
+  citedSnippet?: string;
+  verification?: 'verified' | 'uncertain';
+  anchorStatus?: 'exact' | 'relocated' | 'unanchored';
+  verificationReason?: string;
   source: FindingSource;
   linterName?: string;
   citations: Citation[];

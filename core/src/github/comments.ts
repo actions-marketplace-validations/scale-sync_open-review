@@ -31,15 +31,41 @@ export class CommentPoster {
    * Post all findings as a single batch review.
    * Review state is always COMMENT — never auto-approve or request changes.
    */
-  async postReview(prNumber: number, findings: ReviewFinding[], headSha = ''): Promise<void> {
+  async postReview(
+    prNumber: number,
+    findings: ReviewFinding[],
+    headSha = '',
+    diff = '',
+  ): Promise<void> {
     if (findings.length === 0) return;
+
+    const current = await this.client.getPR(prNumber);
+    if (!headSha || current.head.sha !== headSha) {
+      throw new Error('PR head changed before inline comments could be posted');
+    }
+    const added = changedLines(diff);
 
     const existing = await this.fetchInlineMarkers(prNumber);
     const comments = findings
+      .filter((f) => f.verification === 'verified' && f.anchorStatus !== 'unanchored')
+      .filter((f) => {
+        const lines = added.get(f.file);
+        return (
+          lines &&
+          f.startLine > 0 &&
+          f.endLine >= f.startLine &&
+          Array.from({ length: f.endLine - f.startLine + 1 }, (_, i) => f.startLine + i).every(
+            (line) => lines.has(line),
+          )
+        );
+      })
       .filter((f) => !existing.has(this.inlineMarker(headSha, f)))
       .map((f) => ({
         path: f.file,
-        line: f.startLine,
+        line: f.endLine,
+        ...(f.startLine < f.endLine
+          ? { start_line: f.startLine, start_side: 'RIGHT' as const }
+          : {}),
         side: 'RIGHT' as const,
         body: `${formatInlineComment(f)}\n\n${this.inlineMarker(headSha, f)}`,
       }));
@@ -49,6 +75,7 @@ export class CommentPoster {
       `/repos/${this.client.owner}/${this.client.repo}/pulls/${prNumber}/reviews`,
       {
         event: 'COMMENT',
+        commit_id: headSha,
         comments,
       },
     );
@@ -70,7 +97,7 @@ export class CommentPoster {
 
     const newFindings = summary.newFindings ?? findings;
     if (newFindings.length > 0) {
-      await this.postReview(prNumber, newFindings, pr.metadata.headSha);
+      await this.postReview(prNumber, newFindings, pr.metadata.headSha, pr.diff);
     }
 
     await this.postSummaryComment(prNumber, summary, state);
@@ -206,4 +233,30 @@ export class CommentPoster {
 
     return null;
   }
+}
+
+function changedLines(diff: string): Map<string, Set<number>> {
+  const result = new Map<string, Set<number>>();
+  let path = '';
+  let line = 0;
+  for (const text of diff.split('\n')) {
+    if (text.startsWith('diff --git ')) {
+      path = '';
+      continue;
+    }
+    if (text.startsWith('+++ b/')) {
+      path = text.slice(6);
+      result.set(path, new Set());
+      continue;
+    }
+    const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
+    if (hunk) {
+      line = Number(hunk[1]);
+      continue;
+    }
+    if (!path) continue;
+    if (text.startsWith('+') && !text.startsWith('+++')) result.get(path)!.add(line++);
+    else if (text.startsWith(' ')) line++;
+  }
+  return result;
 }

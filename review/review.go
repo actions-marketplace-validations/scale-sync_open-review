@@ -16,6 +16,7 @@ import (
 	"github.com/scale-sync/open-review/review/internal/linter"
 	"github.com/scale-sync/open-review/review/internal/llm"
 	"github.com/scale-sync/open-review/review/internal/model"
+	"github.com/scale-sync/open-review/review/internal/verify"
 )
 
 type Options struct {
@@ -112,27 +113,27 @@ func Run(ctx context.Context, req Request) (Result, error) {
 		return result, err
 	}
 	findings, audit := linter.Run(ctx, req, result.Findings)
+	findings, diagnostics := verify.Findings(req, findings)
 	result.Findings = findings
 	result.Audit = append(result.Audit, audit...)
-	if len(findings) > 0 {
-		var summary map[string]any
-		if json.Unmarshal(result.Summary, &summary) == nil {
-			counts := map[string]int{"severe": 0, "non-severe": 0, "investigate": 0, "informational": 0}
-			for _, raw := range findings {
-				var finding model.Finding
-				if json.Unmarshal(raw, &finding) == nil {
-					counts[finding.Severity]++
-				}
+	result.Audit = append(result.Audit, diagnostics...)
+	var summary map[string]any
+	if json.Unmarshal(result.Summary, &summary) == nil {
+		counts := map[string]int{"severe": 0, "non-severe": 0, "investigate": 0, "informational": 0}
+		for _, raw := range findings {
+			var finding model.Finding
+			if json.Unmarshal(raw, &finding) == nil {
+				counts[finding.Severity]++
 			}
-			summary["totalFindings"] = len(findings)
-			summary["findingsBySeverity"] = counts
-			result.Summary, _ = json.Marshal(summary)
 		}
-		var trace map[string]any
-		if json.Unmarshal(result.Trace, &trace) == nil {
-			trace["finalFindingsCount"] = len(findings)
-			result.Trace, _ = json.Marshal(trace)
-		}
+		summary["totalFindings"] = len(findings)
+		summary["findingsBySeverity"] = counts
+		result.Summary, _ = json.Marshal(summary)
+	}
+	var trace map[string]any
+	if json.Unmarshal(result.Trace, &trace) == nil {
+		trace["finalFindingsCount"] = len(findings)
+		result.Trace, _ = json.Marshal(trace)
 	}
 	return result, nil
 }

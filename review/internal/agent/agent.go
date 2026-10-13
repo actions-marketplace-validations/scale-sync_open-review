@@ -47,18 +47,11 @@ func Run(ctx context.Context, req model.Request, reviewer Reviewer) (model.Resul
 	}
 	for _, raw := range response.Findings {
 		var finding model.Finding
-		if err := json.Unmarshal(raw, &finding); err != nil || !fileSet[finding.File] || finding.StartLine < 1 || finding.EndLine < finding.StartLine || finding.Title == "" || len(finding.Title) > 120 || finding.Explanation == "" || !validSeverity(finding.Severity) || (finding.Category != "bug" && finding.Category != "flag") || finding.Source != "ai" || len(finding.Citations) != 1 || finding.Citations[0].File != finding.File || finding.Citations[0].StartLine != finding.StartLine || finding.Citations[0].EndLine != finding.EndLine {
+		if err := json.Unmarshal(raw, &finding); err != nil || !fileSet[finding.File] || finding.Title == "" || len(finding.Title) > 120 || finding.Explanation == "" || !validSeverity(finding.Severity) || (finding.Category != "bug" && finding.Category != "flag") || finding.Source != "ai" || len(finding.Citations) != 1 || finding.Citations[0].File != finding.File || finding.Citations[0].StartLine != finding.StartLine || finding.Citations[0].EndLine != finding.EndLine {
 			return failed(result, fmt.Errorf("reviewer returned invalid finding"))
 		}
-		if len(req.Changes) > 0 {
-			if finding.EndLine-finding.StartLine > 50 {
-				return failed(result, errors.New("reviewer cited too many lines"))
-			}
-			for line := finding.StartLine; line <= finding.EndLine; line++ {
-				if !ChangedLine(req.Changes, finding.File, line) {
-					return failed(result, fmt.Errorf("reviewer cited a line outside the diff"))
-				}
-			}
+		if finding.EndLine-finding.StartLine > 50 {
+			return failed(result, errors.New("reviewer cited too many lines"))
 		}
 	}
 	result.Status = "complete"

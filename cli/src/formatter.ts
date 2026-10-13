@@ -39,6 +39,8 @@ export function formatText(
       `${icon} ${f.severity.toUpperCase()} ${f.file}:${f.startLine} — ${f.title}${source}`,
     );
     lines.push(`  ${f.explanation}`);
+    if (f.verification === 'uncertain')
+      lines.push(`  Needs checking: ${f.verificationReason ?? 'unanchored'}`);
     if (f.suggestedFix) {
       lines.push(`  Fix: ${f.suggestedFix}`);
     }
@@ -99,9 +101,11 @@ export function formatMarkdown(
       lines.push(`**${f.title}** — \`${f.file}:${f.startLine}\``);
       lines.push('');
       lines.push(f.explanation);
+      if (f.verification === 'uncertain')
+        lines.push('', `Needs checking: ${f.verificationReason ?? 'unanchored'}`);
       if (f.suggestedFix) {
         lines.push('');
-        lines.push('```suggestion');
+        lines.push('```text');
         lines.push(f.suggestedFix);
         lines.push('```');
       }

@@ -78,18 +78,22 @@ type Usage struct {
 }
 
 type Finding struct {
-	ID           string     `json:"id"`
-	Category     string     `json:"category"`
-	Severity     string     `json:"severity"`
-	File         string     `json:"file"`
-	StartLine    int        `json:"startLine"`
-	EndLine      int        `json:"endLine"`
-	Title        string     `json:"title"`
-	Explanation  string     `json:"explanation"`
-	SuggestedFix string     `json:"suggestedFix,omitempty"`
-	Source       string     `json:"source"`
-	LinterName   string     `json:"linterName,omitempty"`
-	Citations    []Citation `json:"citations"`
+	ID                 string     `json:"id"`
+	Category           string     `json:"category"`
+	Severity           string     `json:"severity"`
+	File               string     `json:"file"`
+	StartLine          int        `json:"startLine"`
+	EndLine            int        `json:"endLine"`
+	Title              string     `json:"title"`
+	Explanation        string     `json:"explanation"`
+	SuggestedFix       string     `json:"suggestedFix,omitempty"`
+	CitedSnippet       string     `json:"citedSnippet,omitempty"`
+	Verification       string     `json:"verification,omitempty"`
+	AnchorStatus       string     `json:"anchorStatus,omitempty"`
+	VerificationReason string     `json:"verificationReason,omitempty"`
+	Source             string     `json:"source"`
+	LinterName         string     `json:"linterName,omitempty"`
+	Citations          []Citation `json:"citations"`
 }
 
 type Citation struct {

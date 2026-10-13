@@ -59,7 +59,10 @@ export function formatSummaryComment(summary: ReviewSummary, state?: ReviewState
       '<details>',
       `<summary>${summary.approved ? 'ℹ️' : '🔎'} ${openCount} open</summary>`,
       '',
-      ...openFindings.map((f) => formatFindingListItem(f)),
+      ...openFindings.map(
+        (f) =>
+          `${formatFindingListItem(f)}${f.verification === 'uncertain' ? ` (needs checking: ${f.verificationReason ?? 'unanchored'})` : ''}`,
+      ),
       '',
       '</details>',
       '',
@@ -68,9 +71,7 @@ export function formatSummaryComment(summary: ReviewSummary, state?: ReviewState
     lines.push('✅ No open findings.', '');
   }
 
-  lines.push(
-    `<sub>Files reviewed: ${summary.filesReviewed} · Duration: ${summary.duration}</sub>`,
-  );
+  lines.push(`<sub>Files reviewed: ${summary.filesReviewed} · Duration: ${summary.duration}</sub>`);
 
   if (summary.finishingTouches) {
     lines.push('', summary.finishingTouches);
@@ -85,10 +86,11 @@ export function formatSummaryComment(summary: ReviewSummary, state?: ReviewState
 
 export function formatInlineComment(finding: ReviewFinding): string {
   const badge = SEVERITY_BADGES[finding.severity];
-  let body = `${badge}: ${finding.title}\n\n${finding.explanation}`;
+  let body = `${badge}: ${finding.title}\n\n${finding.explanation}\n\n${finding.file}:${finding.startLine}${finding.endLine > finding.startLine ? `-${finding.endLine}` : ''}`;
 
   if (finding.suggestedFix) {
-    body += `\n\n**Suggested fix:**\n\`\`\`suggestion\n${finding.suggestedFix}\n\`\`\``;
+    const fence = finding.suggestedFix.includes('```') ? '````' : '```';
+    body += `\n\n**Suggested fix:**\n${fence}${fence === '```' ? 'suggestion' : 'text'}\n${finding.suggestedFix}\n${fence}`;
   }
 
   if (finding.source === 'linter' || finding.source === 'both') {

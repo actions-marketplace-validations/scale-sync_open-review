@@ -41,8 +41,8 @@ func TestFindingMustCiteChangedNewLine(t *testing.T) {
 		if test.start == 1 && test.end == 1 && (err != nil || result.Status != "complete") {
 			t.Fatalf("valid line: %+v, %v", result, err)
 		}
-		if test.end == 2 && (err == nil || result.Coverage[0].State != "failed") {
-			t.Fatalf("invalid line: %+v, %v", result, err)
+		if test.end == 2 && (err != nil || result.Status != "complete") {
+			t.Fatalf("anchor verification belongs to the final validator: %+v, %v", result, err)
 		}
 	}
 }
