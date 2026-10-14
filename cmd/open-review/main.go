@@ -47,8 +47,11 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if len(args) > 0 && args[0] == "review-json" {
 		return runJSON(ctx, args[1:], os.Stdin, output)
 	}
+	if len(args) > 0 && args[0] == "sessions" {
+		return runSessions(args[1:], output)
+	}
 	if len(args) == 0 || args[0] != "review" {
-		return errors.New("usage: open-review review|review-json|rules|config|completion")
+		return errors.New("usage: open-review review|review-json|sessions|rules|config|completion")
 	}
 	flags := flag.NewFlagSet("review", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -59,6 +62,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	commit := flags.String("commit", "", "single commit")
 	format := flags.String("output", "text", "text or json")
 	outputFile := flags.String("output-file", "", "write output atomically to a file")
+	sessionDir := flags.String("session-dir", "", "save review history and reuse completed groups")
 	quiet := flags.Bool("quiet", false, "suppress progress messages")
 	instruction := flags.String("instruction", "", "explicit review instruction")
 	provider := flags.String("provider", "", "model provider")
@@ -140,7 +144,33 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 		fmt.Fprintln(os.Stderr, "Review scope:")
 		_ = printCoverage(os.Stderr, req.Coverage)
 	}
+	var store *review.Session
+	if *sessionDir != "" {
+		store, err = review.OpenSession(*sessionDir, req)
+		if err != nil {
+			return err
+		}
+		ctx = review.WithSession(ctx, store)
+	}
 	result, reviewErr := review.Run(ctx, req)
+	if store != nil {
+		if result.Status == "" {
+			result.Status = "failed"
+		}
+		for _, entry := range result.Coverage {
+			if recordErr := store.Record(review.SessionEvent{Type: "coverage", Status: entry.State, Path: entry.Path}); recordErr != nil {
+				return errors.Join(reviewErr, recordErr)
+			}
+		}
+		for _, event := range result.Audit {
+			if recordErr := store.Record(review.SessionEvent{Type: "audit:" + event.Stage, Status: event.Status}); recordErr != nil {
+				return errors.Join(reviewErr, recordErr)
+			}
+		}
+		if saveErr := store.Finish(result); saveErr != nil {
+			return errors.Join(reviewErr, saveErr)
+		}
+	}
 	if reviewErr != nil && result.Status == "" {
 		return reviewErr
 	}

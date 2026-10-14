@@ -13,7 +13,98 @@ import (
 
 	"github.com/scale-sync/open-review/review/internal/diff"
 	"github.com/scale-sync/open-review/review/internal/model"
+	sessionstore "github.com/scale-sync/open-review/review/internal/session"
 )
+
+func TestReviewResumesCompletedGroupsWithoutModelCalls(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`))
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	req := model.Request{ContractVersion: model.ContractVersion, Mode: "branch", RepoRoot: t.TempDir(), HeadSHA: strings.Repeat("a", 40), Files: []string{"a.go"}, Diff: "diff --git a/a.go b/a.go\n+change\n", Model: model.ModelIdentity{Provider: "openai", Name: "test-model"}}
+	dir := t.TempDir()
+	first, err := sessionstore.Open(dir, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial, err := Review(sessionstore.WithStore(context.Background(), first), req)
+	if err != nil || calls.Load() != 1 {
+		t.Fatalf("first review: %v, calls = %d", err, calls.Load())
+	}
+	second, err := sessionstore.Open(dir, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resumed, err := Review(sessionstore.WithStore(context.Background(), second), req)
+	if err != nil || calls.Load() != 1 || len(resumed.Findings) != len(initial.Findings) {
+		t.Fatalf("resumed review: %v, calls = %d", err, calls.Load())
+	}
+	req.Instructions = "Check for different behavior"
+	third, err := sessionstore.Open(dir, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = Review(sessionstore.WithStore(context.Background(), third), req)
+	if err != nil || calls.Load() != 2 {
+		t.Fatalf("stale rules reused: %v, calls = %d", err, calls.Load())
+	}
+}
+
+func TestReviewResumeReusesPlanAndGroups(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		var request struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Error(err)
+			return
+		}
+		content := `{"findings":[]}`
+		if strings.Contains(request.Messages[0].Content, "one short review focus") {
+			content = `{"focus":"check changed behavior"}`
+		}
+		response, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": content}}}})
+		_, _ = w.Write(response)
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	files := []string{"a/one.go", "b/two.go", "c/three.go"}
+	patch := ""
+	for _, file := range files {
+		patch += "diff --git a/" + file + " b/" + file + "\n+change\n"
+	}
+	req := model.Request{ContractVersion: model.ContractVersion, Mode: "branch", RepoRoot: t.TempDir(), HeadSHA: strings.Repeat("a", 40), Files: files, Diff: patch, Model: model.ModelIdentity{Provider: "openai", Name: "test-model"}}
+	dir := t.TempDir()
+	for attempt := 0; attempt < 2; attempt++ {
+		store, err := sessionstore.Open(dir, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel, _, err := WithSession(sessionstore.WithStore(context.Background(), store), model.Limits{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		response, err := Review(ctx, req)
+		cancel()
+		if err != nil || response.Partial {
+			t.Fatalf("attempt %d: %v, %+v", attempt, err, response)
+		}
+	}
+	if calls.Load() != 4 {
+		t.Fatalf("model calls after resume = %d", calls.Load())
+	}
+}
 
 func TestModelProvidersAndMalformedOutput(t *testing.T) {
 	tests := []struct{ model, key, base, endpoint, response string }{

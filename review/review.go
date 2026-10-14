@@ -16,6 +16,7 @@ import (
 	"github.com/scale-sync/open-review/review/internal/linter"
 	"github.com/scale-sync/open-review/review/internal/llm"
 	"github.com/scale-sync/open-review/review/internal/model"
+	"github.com/scale-sync/open-review/review/internal/session"
 	"github.com/scale-sync/open-review/review/internal/verify"
 )
 
@@ -38,6 +39,19 @@ type CoverageEntry = model.CoverageEntry
 type ModelIdentity = model.ModelIdentity
 type Limits = model.Limits
 type ProviderConfig = config.Provider
+type Session = session.Store
+type SessionSummary = session.Summary
+type SessionEvent = session.Event
+type SessionRecord = session.Record
+
+func OpenSession(dir string, req Request) (*Session, error) { return session.Open(dir, req) }
+func WithSession(ctx context.Context, store *Session) context.Context {
+	return session.WithStore(ctx, store)
+}
+func SessionDir() (string, error)                             { return session.DefaultDir() }
+func ListSessions(dir, repo string) ([]SessionSummary, error) { return session.List(dir, repo) }
+func ReadSession(dir, id, repo string) (SessionRecord, error) { return session.Read(dir, id, repo) }
+func DeleteSession(dir, id, repo string) error                { return session.Delete(dir, id, repo) }
 
 func LoadProviderConfig() (ProviderConfig, error)   { return config.Load() }
 func SaveProviderConfig(value ProviderConfig) error { return config.Save(value) }
