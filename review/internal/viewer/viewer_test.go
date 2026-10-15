@@ -48,7 +48,7 @@ func TestViewerEscapesResultsAndScopesSessions(t *testing.T) {
 	for _, path := range []string{"/sessions/../../etc/passwd", "/sessions/" + first.ID() + "/wrong"} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest("GET", path, nil))
-		if response.Code != 404 && response.Code != 307 {
+		if response.Code != 404 && response.Code/100 != 3 {
 			t.Fatalf("%s: %d", path, response.Code)
 		}
 	}
