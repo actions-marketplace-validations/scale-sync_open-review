@@ -13,9 +13,10 @@ import (
 )
 
 type Record struct {
-	Summary Summary         `json:"summary"`
-	Events  []Event         `json:"events"`
-	Result  json.RawMessage `json:"result,omitempty"`
+	Summary Summary           `json:"summary"`
+	Events  []Event           `json:"events"`
+	Result  json.RawMessage   `json:"result,omitempty"`
+	Triage  map[string]string `json:"triage,omitempty"`
 }
 
 var validID = regexp.MustCompile(`^[a-f0-9]{16}-[A-Za-z0-9]+$`)
@@ -82,7 +83,8 @@ func Read(dir, id, repo string) (Record, error) {
 	result.Result, err = os.ReadFile(filepath.Join(path, "result.json"))
 	if errors.Is(err, os.ErrNotExist) {
 		result.Result = nil
-		return result, nil
+		result.Triage, err = ReadTriage(dir, id, repo)
+		return result, err
 	}
 	if err != nil {
 		return Record{}, err
@@ -90,7 +92,8 @@ func Read(dir, id, repo string) (Record, error) {
 	if !json.Valid(result.Result) {
 		return Record{}, fmt.Errorf("malformed session result in %s", id)
 	}
-	return result, nil
+	result.Triage, err = ReadTriage(dir, id, repo)
+	return result, err
 }
 
 func Delete(dir, id, repo string) error {

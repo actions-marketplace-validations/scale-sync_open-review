@@ -60,6 +60,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	base := flags.String("base", "", "base branch or commit")
 	head := flags.String("head", "", "head branch or commit")
 	commit := flags.String("commit", "", "single commit")
+	scanPath := flags.String("scan", "", "review a whole file or directory without a Git diff")
 	format := flags.String("output", "text", "text or json")
 	outputFile := flags.String("output-file", "", "write output atomically to a file")
 	sessionDir := flags.String("session-dir", "", "save review history and reuse completed groups")
@@ -101,15 +102,17 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 		return errors.New("review limits must be positive and max-patch-bytes must be between 1024 and 38000")
 	}
 	mode := "workspace"
-	if *commit != "" {
+	if *scanPath != "" {
+		mode = "scan"
+	} else if *commit != "" {
 		mode = "commit"
 	} else if *base != "" || *head != "" {
 		mode = "branch"
 	}
-	if *workspace && mode != "workspace" || *commit != "" && (*base != "" || *head != "") {
+	if *workspace && mode != "workspace" || *commit != "" && (*base != "" || *head != "") || *scanPath != "" && (*commit != "" || *base != "" || *head != "" || *workspace) {
 		return errors.New("choose only one review mode")
 	}
-	req, err := review.Prepare(ctx, review.Options{Repo: *repo, Instructions: *instruction, Mode: mode, Base: *base, Head: *head, Commit: *commit, Include: include, Exclude: exclude, MaxFiles: *maxFiles, MaxFileBytes: *maxFileBytes, MaxPatchBytes: *maxPatchBytes})
+	req, err := review.Prepare(ctx, review.Options{Repo: *repo, Instructions: *instruction, Mode: mode, Base: *base, Head: *head, Commit: *commit, ScanPath: *scanPath, Include: include, Exclude: exclude, MaxFiles: *maxFiles, MaxFileBytes: *maxFileBytes, MaxPatchBytes: *maxPatchBytes})
 	if err != nil {
 		return err
 	}

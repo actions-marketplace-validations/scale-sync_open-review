@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
 
@@ -16,8 +17,10 @@ import (
 	"github.com/scale-sync/open-review/review/internal/linter"
 	"github.com/scale-sync/open-review/review/internal/llm"
 	"github.com/scale-sync/open-review/review/internal/model"
+	"github.com/scale-sync/open-review/review/internal/scan"
 	"github.com/scale-sync/open-review/review/internal/session"
 	"github.com/scale-sync/open-review/review/internal/verify"
+	"github.com/scale-sync/open-review/review/internal/viewer"
 )
 
 type Options struct {
@@ -27,6 +30,7 @@ type Options struct {
 	Base          string
 	Head          string
 	Commit        string
+	ScanPath      string
 	Include       []string
 	Exclude       []string
 	MaxFiles      int
@@ -52,6 +56,10 @@ func SessionDir() (string, error)                             { return session.D
 func ListSessions(dir, repo string) ([]SessionSummary, error) { return session.List(dir, repo) }
 func ReadSession(dir, id, repo string) (SessionRecord, error) { return session.Read(dir, id, repo) }
 func DeleteSession(dir, id, repo string) error                { return session.Delete(dir, id, repo) }
+func SessionViewer(dir, repo string) http.Handler             { return viewer.Handler(dir, repo) }
+func SetFindingTriage(dir, id, repo, findingID, state string) (map[string]string, error) {
+	return session.SetTriage(dir, id, repo, findingID, state)
+}
 
 func LoadProviderConfig() (ProviderConfig, error)   { return config.Load() }
 func SaveProviderConfig(value ProviderConfig) error { return config.Save(value) }
@@ -62,6 +70,14 @@ func ResolveProviderConfig(identity ModelIdentity) (ProviderConfig, error) {
 func TestProvider(ctx context.Context, identity ModelIdentity) error { return llm.Check(ctx, identity) }
 
 func Prepare(ctx context.Context, opts Options) (Request, error) {
+	if opts.Mode == "scan" {
+		root, changes, err := scan.Prepare(opts.Repo, opts.ScanPath)
+		if err != nil {
+			return Request{}, err
+		}
+		req := Request{ContractVersion: model.ContractVersion, Instructions: opts.Instructions, Mode: "scan", RepoRoot: root, Changes: changes}
+		return selectAndResolve(req, opts)
+	}
 	in, err := gitcmd.Prepare(ctx, gitcmd.Options{Repo: opts.Repo, Mode: opts.Mode, Base: opts.Base, Head: opts.Head, Commit: opts.Commit})
 	if err != nil {
 		return Request{}, err
@@ -82,7 +98,11 @@ func Prepare(ctx context.Context, opts Options) (Request, error) {
 		Files:           in.Files,
 		Changes:         in.Changes,
 	}
-	req, err = agent.Select(req, agent.Selection{Include: opts.Include, Exclude: opts.Exclude, MaxFiles: opts.MaxFiles, MaxFileBytes: opts.MaxFileBytes, MaxPatchBytes: opts.MaxPatchBytes})
+	return selectAndResolve(req, opts)
+}
+
+func selectAndResolve(req Request, opts Options) (Request, error) {
+	req, err := agent.Select(req, agent.Selection{Include: opts.Include, Exclude: opts.Exclude, MaxFiles: opts.MaxFiles, MaxFileBytes: opts.MaxFileBytes, MaxPatchBytes: opts.MaxPatchBytes})
 	if err != nil {
 		return Request{}, err
 	}

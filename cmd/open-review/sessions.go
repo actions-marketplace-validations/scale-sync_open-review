@@ -6,6 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
+	"os"
 	"path/filepath"
 	"slices"
 
@@ -14,7 +17,7 @@ import (
 
 func runSessions(args []string, output io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("usage: open-review sessions list|show|inspect|compare|export|delete")
+		return errors.New("usage: open-review sessions list|show|inspect|compare|export|delete|triage|serve")
 	}
 	command := args[0]
 	flags := flag.NewFlagSet("sessions "+command, flag.ContinueOnError)
@@ -22,6 +25,9 @@ func runSessions(args []string, output io.Writer) error {
 	dir := flags.String("dir", "", "session directory")
 	repo := flags.String("repo", ".", "repository path")
 	file := flags.String("output", "", "export path")
+	addr := flags.String("addr", "127.0.0.1:0", "loopback viewer address")
+	prURL := flags.String("pr-url", "", "GitHub pull request URL for explicit thread sync")
+	threadID := flags.String("thread-id", "", "GitHub review thread node ID")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -44,6 +50,23 @@ func runSessions(args []string, output io.Writer) error {
 		return writeOutput(output, *file, append(data, '\n'))
 	}
 	switch command {
+	case "serve":
+		if len(positions) != 0 || *file != "" {
+			return errors.New("usage: sessions serve [--dir PATH] [--repo PATH] [--addr 127.0.0.1:PORT]")
+		}
+		host, _, err := net.SplitHostPort(*addr)
+		if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
+			return errors.New("session viewer must bind to a numeric loopback address")
+		}
+		listener, err := net.Listen("tcp", *addr)
+		if err != nil {
+			return err
+		}
+		defer listener.Close()
+		if _, err := fmt.Fprintf(output, "Session viewer: http://%s/\n", listener.Addr()); err != nil {
+			return err
+		}
+		return http.Serve(listener, review.SessionViewer(*dir, root))
 	case "list":
 		if len(positions) != 0 || *file != "" {
 			return errors.New("usage: sessions list [--dir PATH] [--repo PATH]")
@@ -53,6 +76,38 @@ func runSessions(args []string, output io.Writer) error {
 			return err
 		}
 		return encode(items)
+	case "triage":
+		if len(positions) != 3 || *file != "" {
+			return errors.New("usage: sessions triage [flags] ID FINDING_ID open|fixed|ignored|false_positive")
+		}
+		if (*prURL == "") != (*threadID == "") {
+			return errors.New("GitHub sync requires both --pr-url and --thread-id")
+		}
+		if *prURL != "" {
+			token := os.Getenv("GITHUB_TOKEN")
+			if token == "" {
+				token = os.Getenv("GH_TOKEN")
+			}
+			if token == "" {
+				return errors.New("GitHub sync requires GITHUB_TOKEN or GH_TOKEN")
+			}
+			record, err := review.ReadSession(*dir, positions[0], root)
+			if err != nil {
+				return err
+			}
+			finding, err := sessionFinding(record, positions[1])
+			if err != nil {
+				return err
+			}
+			if err := syncGitHubThread(http.DefaultClient, "https://api.github.com/graphql", token, *prURL, *threadID, finding, positions[2]); err != nil {
+				return err
+			}
+		}
+		states, err := review.SetFindingTriage(*dir, positions[0], root, positions[1], positions[2])
+		if err != nil {
+			return err
+		}
+		return encode(states)
 	case "show", "inspect", "export", "delete":
 		if len(positions) != 1 {
 			return fmt.Errorf("usage: sessions %s [flags] ID", command)
@@ -92,7 +147,7 @@ func runSessions(args []string, output io.Writer) error {
 		}
 		return encode(comparison)
 	default:
-		return errors.New("usage: open-review sessions list|show|inspect|compare|export|delete")
+		return errors.New("usage: open-review sessions list|show|inspect|compare|export|delete|triage|serve")
 	}
 }
 

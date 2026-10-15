@@ -136,7 +136,7 @@ func Open(dir string, req model.Request) (*Store, error) {
 	if err := os.Chmod(path, 0o700); err != nil {
 		return nil, err
 	}
-	store := &Store{dir: path, id: filepath.Base(path), finger: finger, repo: req.RepoRoot, reusable: req.Mode != "workspace" && (req.HeadSHA != "" || req.CommitSHA != ""), prior: prior}
+	store := &Store{dir: path, id: filepath.Base(path), finger: finger, repo: req.RepoRoot, reusable: req.Mode == "scan" || req.Mode != "workspace" && (req.HeadSHA != "" || req.CommitSHA != ""), prior: prior}
 	if err := store.write("meta.json", Summary{ID: store.id, Fingerprint: finger, Repo: req.RepoRoot, Started: time.Now().UTC(), Status: "running"}); err != nil {
 		return nil, err
 	}

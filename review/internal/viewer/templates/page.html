@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} · open-review</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <header><a href="/">open-review</a><span>LOCAL SESSION VIEWER</span></header>
+    <h1>{{.Title}}</h1>
+    <p class="repo">Repository: <code>{{.Repo}}</code></p>
+    {{if .Compare}}
+      <p>Before: <a href="/sessions/{{.Compare.Left}}">{{.Compare.Left}}</a> · After: <a href="/sessions/{{.Compare.Right}}">{{.Compare.Right}}</a></p>
+      <h2>New findings</h2><ul>{{range .Compare.Added}}<li>{{.}}</li>{{else}}<li>None</li>{{end}}</ul>
+      <h2>Removed findings</h2><ul>{{range .Compare.Removed}}<li>{{.}}</li>{{else}}<li>None</li>{{end}}</ul>
+    {{else if .Record}}
+      <p><strong>Status:</strong> {{.Record.Summary.Status}} · <strong>Started:</strong> {{.Record.Summary.Started}}</p>
+      <p><a href="/sessions/{{.Record.Summary.ID}}/export">Export this session</a></p>
+      <h2>Events</h2>
+      <ol>{{range .Record.Events}}<li><time>{{.Time}}</time> <strong>{{.Type}}</strong> {{.Status}} {{.Path}}</li>{{else}}<li>No events recorded.</li>{{end}}</ol>
+      <h2>Finding triage</h2>
+      <ul>{{range .Triage}}<li><code>{{.ID}}</code>: {{.State}}</li>{{else}}<li>No findings marked.</li>{{end}}</ul>
+      <h2>Result and coverage</h2>
+      {{if .Result}}<pre>{{.Result}}</pre>{{else}}<p>The run has no final result yet.</p>{{end}}
+    {{else}}
+      <h2>Saved reviews</h2>
+      <ul class="sessions">{{range .Sessions}}<li><a href="/sessions/{{.ID}}">{{.ID}}</a><span>{{.Status}} · {{.Started}}</span></li>{{else}}<li>No sessions for this repository.</li>{{end}}</ul>
+      <h2>Compare reviews</h2>
+      <form action="/compare" method="get"><label>Before <select name="left">{{range .Sessions}}<option value="{{.ID}}">{{.ID}}</option>{{end}}</select></label><label>After <select name="right">{{range .Sessions}}<option value="{{.ID}}">{{.ID}}</option>{{end}}</select></label><button type="submit">Compare</button></form>
+    {{end}}
+  </main>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # open-review release roadmap
 
-> Current planning index, 2026-10-15. One version equals one three-feature batch, one tested GitHub push, human-written release notes, and one GitHub release. Planned scope is not implemented proof.
+> Current planning index, 2026-10-16. One version equals one three-feature batch, one tested GitHub push, human-written release notes, and one GitHub release. Planned scope is not implemented proof.
 
 ## Three major release groups
 
@@ -13,6 +13,17 @@
 The four SDKs begin only after v0.7.0 and after the public review contract is stable. They are scheduled late so language bindings do not freeze an unstable API. The repository stays Go-dominant; adapters and editor UI use their platform languages. See the [architecture decision](../_decision_docs/Go_Architecture.md).
 
 The [target repository tree](../_decision_docs/Target_Repository_Tree.md) shows the first release and language for every planned area through v1.12.0.
+
+## Release status — 2026-10-16
+
+| Group | Published | Remaining | Next version |
+| --- | ---: | ---: | --- |
+| I. Daily review foundation | 5 of 5 | 0 | Complete |
+| II. Review depth and workflow | 5 of 7 | 2 | v1.5.0 |
+| III. Ecosystem and distribution | 0 of 6 | 6 | v1.7.0 |
+| **Total** | **10 of 18** | **8** | **v1.5.0** |
+
+Local tags and GitHub releases exist through v1.4.0; CI passed on the v1.4.0 commit. Release publication does not prove live model quality or live PR posting. The benchmark runner and scorer are prepared locally, but no complete, adjudicated open-review run exists, so the product leaderboard has no scores. The website and benchmark work are still uncommitted and are not part of v1.4.0.
 
 ## Complete feature list by release
 

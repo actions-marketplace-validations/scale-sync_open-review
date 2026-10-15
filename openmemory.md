@@ -8,7 +8,7 @@
 
 ## Overview
 
-open-review is an open-source, agentic code review tool. v1.4.0 runs fast and deep reviews in Go for local Git changes and GitHub pull requests, with pinned read-only context tools, bounded review rounds, per-file rules, precise findings, resumable local sessions, provider setup, and script-friendly output. Go also owns linter fusion when tools and a trusted checkout are available; TypeScript 7 keeps platform, review-state, and conversation code. The GitHub Action is bundled for Linux x64. Package registry publication is future work. MIT licensed.
+open-review is an open-source, agentic code review tool. v1.5.0 runs fast and deep reviews in Go for local Git changes, whole-file scans, and GitHub pull requests, with pinned read-only context tools, bounded review rounds, per-file rules, precise findings, resumable local sessions, a local viewer, provider setup, and script-friendly output. Go also owns linter fusion when tools and a trusted checkout are available; TypeScript 7 keeps platform, review-state, and conversation code. The GitHub Action is bundled for Linux x64. Package registry publication is future work. MIT licensed.
 
 **Repository:** github.com/scale-sync/open-review
 **Languages:** Go review engine; TypeScript 7 platform, CLI, and Action
