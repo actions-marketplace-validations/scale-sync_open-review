@@ -100,6 +100,11 @@ export class CommentPoster {
       await this.postReview(prNumber, newFindings, pr.metadata.headSha, pr.diff);
     }
 
+    const current = await this.client.getPR(prNumber);
+    if (current.head.sha !== pr.metadata.headSha) {
+      throw new Error('PR head changed before summary could be posted');
+    }
+
     await this.postSummaryComment(prNumber, summary, state);
     return summary;
   }

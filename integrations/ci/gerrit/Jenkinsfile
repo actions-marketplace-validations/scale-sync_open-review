@@ -1,0 +1,18 @@
+pipeline {
+  agent any
+  stages {
+    stage('Review') {
+      steps {
+        checkout scm
+        sh 'git fetch origin "$GERRIT_REFSPEC" && git checkout --detach FETCH_HEAD'
+        sh 'go install github.com/scale-sync/open-review/cmd/open-review@v1.6.0'
+        sh 'OPEN_REVIEW_BIN="$(go env GOPATH)/bin/open-review" OPEN_REVIEW_BASE="${GERRIT_PATCHSET_REVISION}^" OPEN_REVIEW_HEAD="$GERRIT_PATCHSET_REVISION" bash integrations/ci/run.sh'
+      }
+    }
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: 'open-review-artifacts/*', allowEmptyArchive: true
+    }
+  }
+}

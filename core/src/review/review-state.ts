@@ -21,6 +21,7 @@ export interface ReviewState {
   headSha: string;
   reviewedAt: string;
   findings: StoredFinding[];
+  inputFingerprint?: string;
 }
 
 export interface ReviewDiff {
@@ -135,6 +136,7 @@ export function buildReviewState(pr: PRContext, findings: ReviewFinding[]): Revi
     headSha: pr.metadata.headSha,
     reviewedAt: new Date().toISOString(),
     findings: findings.map(toStoredFinding),
+    ...(pr.reviewFingerprint ? { inputFingerprint: pr.reviewFingerprint } : {}),
   };
 }
 

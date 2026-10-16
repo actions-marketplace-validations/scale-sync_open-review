@@ -17,6 +17,7 @@ import (
 	"github.com/scale-sync/open-review/review/internal/linter"
 	"github.com/scale-sync/open-review/review/internal/llm"
 	"github.com/scale-sync/open-review/review/internal/model"
+	"github.com/scale-sync/open-review/review/internal/sarif"
 	"github.com/scale-sync/open-review/review/internal/scan"
 	"github.com/scale-sync/open-review/review/internal/session"
 	"github.com/scale-sync/open-review/review/internal/verify"
@@ -60,6 +61,7 @@ func SessionViewer(dir, repo string) http.Handler             { return viewer.Ha
 func SetFindingTriage(dir, id, repo, findingID, state string) (map[string]string, error) {
 	return session.SetTriage(dir, id, repo, findingID, state)
 }
+func FormatSARIF(result Result) ([]byte, error) { return sarif.Format(result) }
 
 func LoadProviderConfig() (ProviderConfig, error)   { return config.Load() }
 func SaveProviderConfig(value ProviderConfig) error { return config.Save(value) }

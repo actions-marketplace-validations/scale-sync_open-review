@@ -1,0 +1,17 @@
+stages:
+  - review
+
+open-review:
+  image: golang:1.25
+  stage: review
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - go install github.com/scale-sync/open-review/cmd/open-review@v1.6.0
+    - OPEN_REVIEW_BIN="$(go env GOPATH)/bin/open-review" OPEN_REVIEW_BASE="$CI_MERGE_REQUEST_DIFF_BASE_SHA" OPEN_REVIEW_HEAD="$CI_COMMIT_SHA" bash integrations/ci/run.sh
+  artifacts:
+    when: always
+    paths:
+      - open-review-artifacts/

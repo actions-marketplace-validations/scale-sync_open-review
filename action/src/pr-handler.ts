@@ -1,11 +1,14 @@
 import * as core from '@actions/core';
 import type { Context } from '@actions/github/lib/context.js';
+import { createHash } from 'node:crypto';
 import {
   CommentPoster,
   GitHubClient,
+  VERSION,
   buildFastReviewSummary,
   loadRepoConfigFromGitHub,
   runGoReview,
+  toGoRequest,
 } from '@openreview/core';
 import type { PRContext } from '@openreview/core';
 import { injectInputsToEnv } from './inputs.js';
@@ -80,6 +83,18 @@ export async function handlePullRequest(context: Context): Promise<void> {
       ruleSources,
       learnings: [],
     };
+
+      prContext.reviewFingerprint = createHash('sha256').update(JSON.stringify({
+        engineVersion: VERSION,
+        request: toGoRequest(prContext, files),
+        maxFiles: Number(rawMaxFiles),
+        trustedLinters: process.env.OPEN_REVIEW_TRUSTED_LINTERS === 'true',
+      })).digest('hex');
+      const previous = await poster.fetchReviewState(prNumber);
+      if (previous?.headSha === prMeta.head.sha && previous.inputFingerprint === prContext.reviewFingerprint) {
+        core.info('Review already completed for this exact input');
+        return;
+      }
 
     const result = await runGoReview(prContext, files, Number(rawMaxFiles));
     const { findings } = result;

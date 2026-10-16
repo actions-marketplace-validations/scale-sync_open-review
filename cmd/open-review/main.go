@@ -50,8 +50,11 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if len(args) > 0 && args[0] == "sessions" {
 		return runSessions(args[1:], output)
 	}
+	if len(args) > 0 && args[0] == "sarif" {
+		return runSARIF(args[1:], output)
+	}
 	if len(args) == 0 || args[0] != "review" {
-		return errors.New("usage: open-review review|review-json|sessions|rules|config|completion")
+		return errors.New("usage: open-review review|review-json|sarif|sessions|rules|config|completion")
 	}
 	flags := flag.NewFlagSet("review", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -61,7 +64,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	head := flags.String("head", "", "head branch or commit")
 	commit := flags.String("commit", "", "single commit")
 	scanPath := flags.String("scan", "", "review a whole file or directory without a Git diff")
-	format := flags.String("output", "text", "text or json")
+	format := flags.String("output", "text", "text, json, or sarif")
 	outputFile := flags.String("output-file", "", "write output atomically to a file")
 	sessionDir := flags.String("session-dir", "", "save review history and reuse completed groups")
 	quiet := flags.Bool("quiet", false, "suppress progress messages")
@@ -89,7 +92,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %s", strings.Join(flags.Args(), " "))
 	}
-	if *format != "text" && *format != "json" {
+	if *format != "text" && *format != "json" && *format != "sarif" {
 		return fmt.Errorf("unsupported output %q", *format)
 	}
 	if *effort != "low" && *effort != "medium" && *effort != "high" {
@@ -124,6 +127,9 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	req.Limits = review.Limits{PromptTokens: *promptTokens, OutputTokens: *outputTokens, TotalTokens: *totalTokens, RequestSeconds: *requestSeconds, GroupSeconds: *groupSeconds}
 	var rendered bytes.Buffer
 	if *preview {
+		if *format == "sarif" {
+			return errors.New("SARIF output requires a completed review, not preview")
+		}
 		if *format == "json" {
 			if err := json.NewEncoder(&rendered).Encode(struct {
 				Mode     string `json:"mode"`
@@ -179,6 +185,22 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	}
 	if reviewErr != nil && *outputFile != "" {
 		return reviewErr
+	}
+	if *format == "sarif" {
+		data, err := review.FormatSARIF(result)
+		if err != nil {
+			return err
+		}
+		if err := writeOutput(output, *outputFile, append(data, '\n')); err != nil {
+			return err
+		}
+		if reviewErr != nil {
+			return reviewErr
+		}
+		if result.Status == "partial" {
+			return errPartial
+		}
+		return nil
 	}
 	if *format == "json" {
 		encoder := json.NewEncoder(&rendered)

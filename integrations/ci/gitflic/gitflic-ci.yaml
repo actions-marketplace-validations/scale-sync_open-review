@@ -1,0 +1,14 @@
+stages:
+  - review
+
+open-review:
+  image: golang:1.25
+  stage: review
+  scripts:
+    - go install github.com/scale-sync/open-review/cmd/open-review@v1.6.0
+    - git fetch origin "$CI_DEFAULT_BRANCH"
+    - OPEN_REVIEW_BIN="$(go env GOPATH)/bin/open-review" OPEN_REVIEW_BASE="FETCH_HEAD" OPEN_REVIEW_HEAD="$CI_COMMIT_SHA" bash integrations/ci/run.sh
+  artifacts:
+    when: always
+    paths:
+      - open-review-artifacts/

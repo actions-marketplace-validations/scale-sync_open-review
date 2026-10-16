@@ -56805,7 +56805,7 @@ var require_follow_redirects = /* @__PURE__ */ __commonJSMin(((exports, module) 
 }));
 //#endregion
 //#region ../node_modules/.pnpm/axios@1.18.0/node_modules/axios/lib/env/data.js
-const VERSION$2 = "1.18.0";
+const VERSION$3 = "1.18.0";
 //#endregion
 //#region ../node_modules/.pnpm/axios@1.18.0/node_modules/axios/lib/helpers/parseProtocol.js
 function parseProtocol(url) {
@@ -58632,7 +58632,7 @@ const factory = (env) => {
 				const contentType = headers.getContentType();
 				if (contentType && /^multipart\/form-data/i.test(contentType) && !/boundary=/i.test(contentType)) headers.delete("content-type");
 			}
-			headers.set("User-Agent", "axios/" + VERSION$2, false);
+			headers.set("User-Agent", "axios/" + VERSION$3, false);
 			const resolvedOptions = {
 				...fetchOptions,
 				signal: composedSignal,
@@ -58911,7 +58911,7 @@ const deprecatedWarnings = {};
 */
 validators$1.transitional = function transitional(validator, version, message) {
 	function formatMessage(opt, desc) {
-		return "[Axios v" + VERSION$2 + "] Transitional option '" + opt + "'" + desc + (message ? ". " + message : "");
+		return "[Axios v" + VERSION$3 + "] Transitional option '" + opt + "'" + desc + (message ? ". " + message : "");
 	}
 	return (value, opt, opts) => {
 		if (validator === false) throw new AxiosError(formatMessage(opt, " has been removed" + (version ? " in " + version : "")), AxiosError.ERR_DEPRECATED);
@@ -59362,7 +59362,7 @@ axios.Axios = Axios;
 axios.CanceledError = CanceledError;
 axios.CancelToken = CancelToken;
 axios.isCancel = isCancel;
-axios.VERSION = VERSION$2;
+axios.VERSION = VERSION$3;
 axios.toFormData = toFormData;
 axios.AxiosError = AxiosError;
 axios.Cancel = axios.CanceledError;
@@ -59528,7 +59528,7 @@ const safeJSON$1 = (text) => {
 const sleep$1 = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 //#endregion
 //#region ../node_modules/.pnpm/@anthropic-ai+sdk@0.65.0_zod@4.4.3/node_modules/@anthropic-ai/sdk/version.mjs
-const VERSION$1 = "0.65.0";
+const VERSION$2 = "0.65.0";
 //#endregion
 //#region ../node_modules/.pnpm/@anthropic-ai+sdk@0.65.0_zod@4.4.3/node_modules/@anthropic-ai/sdk/internal/detect-platform.mjs
 const isRunningInBrowser$1 = () => {
@@ -59547,7 +59547,7 @@ const getPlatformProperties$1 = () => {
 	const detectedPlatform = getDetectedPlatform();
 	if (detectedPlatform === "deno") return {
 		"X-Stainless-Lang": "js",
-		"X-Stainless-Package-Version": VERSION$1,
+		"X-Stainless-Package-Version": VERSION$2,
 		"X-Stainless-OS": normalizePlatform$1(Deno.build.os),
 		"X-Stainless-Arch": normalizeArch$1(Deno.build.arch),
 		"X-Stainless-Runtime": "deno",
@@ -59555,7 +59555,7 @@ const getPlatformProperties$1 = () => {
 	};
 	if (typeof EdgeRuntime !== "undefined") return {
 		"X-Stainless-Lang": "js",
-		"X-Stainless-Package-Version": VERSION$1,
+		"X-Stainless-Package-Version": VERSION$2,
 		"X-Stainless-OS": "Unknown",
 		"X-Stainless-Arch": `other:${EdgeRuntime}`,
 		"X-Stainless-Runtime": "edge",
@@ -59563,7 +59563,7 @@ const getPlatformProperties$1 = () => {
 	};
 	if (detectedPlatform === "node") return {
 		"X-Stainless-Lang": "js",
-		"X-Stainless-Package-Version": VERSION$1,
+		"X-Stainless-Package-Version": VERSION$2,
 		"X-Stainless-OS": normalizePlatform$1(globalThis.process.platform ?? "unknown"),
 		"X-Stainless-Arch": normalizeArch$1(globalThis.process.arch ?? "unknown"),
 		"X-Stainless-Runtime": "node",
@@ -59572,7 +59572,7 @@ const getPlatformProperties$1 = () => {
 	const browserInfo = getBrowserInfo$1();
 	if (browserInfo) return {
 		"X-Stainless-Lang": "js",
-		"X-Stainless-Package-Version": VERSION$1,
+		"X-Stainless-Package-Version": VERSION$2,
 		"X-Stainless-OS": "Unknown",
 		"X-Stainless-Arch": "unknown",
 		"X-Stainless-Runtime": `browser:${browserInfo.browser}`,
@@ -59580,7 +59580,7 @@ const getPlatformProperties$1 = () => {
 	};
 	return {
 		"X-Stainless-Lang": "js",
-		"X-Stainless-Package-Version": VERSION$1,
+		"X-Stainless-Package-Version": VERSION$2,
 		"X-Stainless-OS": "Unknown",
 		"X-Stainless-Arch": "unknown",
 		"X-Stainless-Runtime": "unknown",
@@ -62758,7 +62758,7 @@ var BaseAnthropic = class {
 		}).join("&");
 	}
 	getUserAgent() {
-		return `${this.constructor.name}/JS ${VERSION$1}`;
+		return `${this.constructor.name}/JS ${VERSION$2}`;
 	}
 	defaultIdempotencyKey() {
 		return `stainless-node-retry-${uuid4$1()}`;
@@ -92683,7 +92683,7 @@ function stringify(object, opts = {}) {
 }
 //#endregion
 //#region ../node_modules/.pnpm/openai@4.104.0_zod@3.25.76/node_modules/openai/version.mjs
-const VERSION = "4.104.0";
+const VERSION$1 = "4.104.0";
 //#endregion
 //#region ../node_modules/.pnpm/openai@4.104.0_zod@3.25.76/node_modules/openai/_shims/registry.mjs
 let auto = false;
@@ -135543,7 +135543,7 @@ var APIClient = class {
 		return Math.min(initialRetryDelay * Math.pow(2, numRetries), maxRetryDelay) * (1 - Math.random() * .25) * 1e3;
 	}
 	getUserAgent() {
-		return `${this.constructor.name}/JS ${VERSION}`;
+		return `${this.constructor.name}/JS ${VERSION$1}`;
 	}
 };
 var AbstractPage = class {
@@ -135640,7 +135640,7 @@ const isRequestOptions = (obj) => {
 const getPlatformProperties = () => {
 	if (typeof Deno !== "undefined" && Deno.build != null) return {
 		"X-Stainless-Lang": "js",
-		"X-Stainless-Package-Version": VERSION,
+		"X-Stainless-Package-Version": VERSION$1,
 		"X-Stainless-OS": normalizePlatform(Deno.build.os),
 		"X-Stainless-Arch": normalizeArch(Deno.build.arch),
 		"X-Stainless-Runtime": "deno",
@@ -135648,7 +135648,7 @@ const getPlatformProperties = () => {
 	};
 	if (typeof EdgeRuntime !== "undefined") return {
 		"X-Stainless-Lang": "js",
-		"X-Stainless-Package-Version": VERSION,
+		"X-Stainless-Package-Version": VERSION$1,
 		"X-Stainless-OS": "Unknown",
 		"X-Stainless-Arch": `other:${EdgeRuntime}`,
 		"X-Stainless-Runtime": "edge",
@@ -135656,7 +135656,7 @@ const getPlatformProperties = () => {
 	};
 	if (Object.prototype.toString.call(typeof process !== "undefined" ? process : 0) === "[object process]") return {
 		"X-Stainless-Lang": "js",
-		"X-Stainless-Package-Version": VERSION,
+		"X-Stainless-Package-Version": VERSION$1,
 		"X-Stainless-OS": normalizePlatform(process.platform),
 		"X-Stainless-Arch": normalizeArch(process.arch),
 		"X-Stainless-Runtime": "node",
@@ -135665,7 +135665,7 @@ const getPlatformProperties = () => {
 	const browserInfo = getBrowserInfo();
 	if (browserInfo) return {
 		"X-Stainless-Lang": "js",
-		"X-Stainless-Package-Version": VERSION,
+		"X-Stainless-Package-Version": VERSION$1,
 		"X-Stainless-OS": "Unknown",
 		"X-Stainless-Arch": "unknown",
 		"X-Stainless-Runtime": `browser:${browserInfo.browser}`,
@@ -135673,7 +135673,7 @@ const getPlatformProperties = () => {
 	};
 	return {
 		"X-Stainless-Lang": "js",
-		"X-Stainless-Package-Version": VERSION,
+		"X-Stainless-Package-Version": VERSION$1,
 		"X-Stainless-OS": "Unknown",
 		"X-Stainless-Arch": "unknown",
 		"X-Stainless-Runtime": "unknown",
@@ -143911,12 +143911,12 @@ Object.defineProperty(DallEAPIWrapper, "toolName", {
 //#region ../node_modules/.pnpm/@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3_/node_modules/@langchain/core/singletons.js
 init_singletons();
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/setup/async_local_storage.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/setup/async_local_storage.js
 function initializeAsyncLocalStorageSingleton() {
 	AsyncLocalStorageProviderSingleton.initializeGlobalInstance(new AsyncLocalStorage());
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/errors.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/errors.js
 var BaseLangGraphError = class extends Error {
 	constructor(message, fields) {
 		let finalMessage = message ?? "";
@@ -145833,7 +145833,7 @@ var AsyncBatchedStore = class extends BaseStore {
 	}
 };
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/channels/base.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/channels/base.js
 function isBaseChannel(obj) {
 	return obj != null && obj.lg_is_channel === true;
 }
@@ -145899,7 +145899,7 @@ function createCheckpoint(checkpoint, channels, step) {
 	};
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/channels/binop.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/channels/binop.js
 /**
 * Stores the result of applying a binary operator to the current value and each new value.
 */
@@ -145959,7 +145959,7 @@ var BinaryOperatorAggregate = class BinaryOperatorAggregate extends BaseChannel 
 	}
 };
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/channels/last_value.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/channels/last_value.js
 /**
 * Stores the last value received, can receive at most one value per step.
 *
@@ -146005,7 +146005,7 @@ var LastValue = class LastValue extends BaseChannel {
 	}
 };
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/constants.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/constants.js
 /** Special reserved node name denoting the start of a graph. */
 const START = "__start__";
 /** Special reserved node name denoting the end of a graph. */
@@ -146367,7 +146367,7 @@ function _deserializeCommandSendObjectGraph(x, seen = /* @__PURE__ */ new Map())
 	return x;
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/managed/base.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/managed/base.js
 var ManagedValue = class {
 	constructor(config, _params) {
 		Object.defineProperty(this, "runtime", {
@@ -146456,7 +146456,7 @@ var NoopManagedValue = class NoopManagedValue extends ManagedValue {
 	}
 };
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/graph/annotation.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/graph/annotation.js
 /**
 * Should not be instantiated directly. See {@link Annotation}.
 */
@@ -146563,7 +146563,7 @@ function getChannel(reducer) {
 //#region ../node_modules/.pnpm/@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3_/node_modules/@langchain/core/runnables/graph.js
 init_graph();
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/utils/config.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/utils/config.js
 const COPIABLE_KEYS = [
 	"tags",
 	"metadata",
@@ -146626,7 +146626,7 @@ function getParentCheckpointNamespace(namespace) {
 	return parts.slice(0, -1).join("|");
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/utils.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/utils.js
 var RunnableCallable = class extends Runnable {
 	constructor(fields) {
 		super();
@@ -146729,7 +146729,7 @@ function isGeneratorFunction(val) {
 	return val != null && typeof val === "function" && val instanceof Object.getPrototypeOf(function* () {}).constructor;
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/write.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/write.js
 function _isSkipWrite(x) {
 	return typeof x === "object" && x?.[Symbol.for("LG_SKIP_WRITE")] !== void 0;
 }
@@ -146820,7 +146820,7 @@ function _isChannelWriteTupleEntry(x) {
 	return x !== void 0 && !_isChannelWriteEntry(x) && Runnable.isRunnable(x.mapper);
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/read.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/read.js
 const defaultRunnableBound = /* @__PURE__ */ new RunnablePassthrough();
 var PregelNode = class PregelNode extends RunnableBinding {
 	constructor(fields) {
@@ -146997,7 +146997,7 @@ var PregelNode = class PregelNode extends RunnableBinding {
 	}
 };
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/validate.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/validate.js
 var GraphValidationError = class extends Error {
 	constructor(message) {
 		super(message);
@@ -147035,7 +147035,7 @@ function validateKeys(keys, channels) {
 	} else if (!(keys in channels)) throw new Error(`Key ${String(keys)} not found in channels`);
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/io.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/io.js
 init_esm_node();
 function readChannel(channels, chan, catchErrors = true, returnException = false) {
 	try {
@@ -147164,7 +147164,7 @@ function* mapOutputUpdates(outputChannels, tasks, cached) {
 	yield flattened;
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/utils/subgraph.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/utils/subgraph.js
 function isRunnableSequence(x) {
 	return "steps" in x && Array.isArray(x.steps);
 }
@@ -147177,7 +147177,7 @@ function findSubgraphPregel(candidate) {
 	else if (isRunnableSequence(candidate)) candidates.push(...candidate.steps);
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/debug.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/debug.js
 const COLORS_MAP = {
 	blue: {
 		start: "\x1B[34m",
@@ -147328,7 +147328,7 @@ function printStepWrites(step, writes, whitelist) {
 	].join(""));
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/types.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/types.js
 var Call = class {
 	constructor({ func, name, input, retry, callbacks }) {
 		Object.defineProperty(this, "func", {
@@ -147378,7 +147378,7 @@ function isCall(value) {
 	return typeof value === "object" && value !== null && "__lg_type" in value && value.__lg_type === "call";
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/utils/index.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/utils/index.js
 function getNullChannelVersion(currentVersions) {
 	const versionValues = Object.values(currentVersions);
 	const versionType = versionValues.length > 0 ? typeof versionValues[0] : void 0;
@@ -147435,7 +147435,7 @@ function combineAbortSignals(...signals) {
 	return combinedController.signal;
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/call.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/call.js
 /**
 * Wraps a user function in a Runnable that writes the returned value to the RETURN channel.
 */
@@ -147465,7 +147465,7 @@ function getRunnableForEntrypoint(name, func) {
 	});
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/algo.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/algo.js
 const increment = (current) => {
 	return current !== void 0 ? current + 1 : 1;
 };
@@ -147939,7 +147939,7 @@ function _scratchpad({ pendingWrites, taskId, currentTaskInput }) {
 //#region ../node_modules/.pnpm/@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3_/node_modules/@langchain/core/utils/stream.js
 init_stream();
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/stream.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/stream.js
 /**
 * A wrapper around an IterableReadableStream that allows for aborting the stream when
 * {@link cancel} is called.
@@ -148054,7 +148054,7 @@ var IterableReadableWritableStream = class extends IterableReadableStream {
 	}
 };
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/loop.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/loop.js
 const INPUT_DONE = Symbol.for("INPUT_DONE");
 const INPUT_RESUMING = Symbol.for("INPUT_RESUMING");
 const DEFAULT_LOOP_LIMIT = 25;
@@ -148643,7 +148643,7 @@ var PregelLoop = class PregelLoop {
 //#region ../node_modules/.pnpm/@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3_/node_modules/@langchain/core/callbacks/base.js
 init_base$3();
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/messages.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/messages.js
 function isChatGenerationChunk(x) {
 	return isBaseMessage(x?.message);
 }
@@ -148853,7 +148853,7 @@ async function _runWithRetry(pregelTask, retryPolicy, configurable, signal) {
 	};
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/runner.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/runner.js
 const PROMISE_ADDED_SYMBOL = Symbol.for("promiseAdded");
 function createPromiseBarrier() {
 	const barrier = {
@@ -149072,7 +149072,7 @@ async function call(runner, task, func, name, input, options = {}) {
 	}
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/pregel/index.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/pregel/index.js
 /**
 * The Pregel class is the core runtime engine of LangGraph, implementing a message-passing graph computation model
 * inspired by [Google's Pregel system](https://research.google/pubs/pregel-a-system-for-large-scale-graph-processing/).
@@ -150135,7 +150135,7 @@ var Pregel = class extends Runnable {
 	}
 };
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/channels/ephemeral_value.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/channels/ephemeral_value.js
 /**
 * Stores the value received in the step immediately preceding, clears after.
 * @internal
@@ -150188,7 +150188,7 @@ var EphemeralValue = class EphemeralValue extends BaseChannel {
 	}
 };
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/graph/zod/state.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/graph/zod/state.js
 const META_MAP = /* @__PURE__ */ new WeakMap();
 function isZodType(value) {
 	return typeof value === "object" && value != null && "_parse" in value && typeof value._parse === "function";
@@ -150208,7 +150208,7 @@ function withLangGraph(schema, meta) {
 	return schema;
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/graph/message.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/graph/message.js
 init_esm_node();
 /**
 * Prebuilt reducer that combines returned messages.
@@ -150253,7 +150253,7 @@ function messagesStateReducer(left, right) {
 	return merged.filter((m) => !idsToRemove.has(m.id));
 }
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/func/index.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/func/index.js
 /**
 * Define a LangGraph workflow using the `entrypoint` function.
 *
@@ -150458,7 +150458,7 @@ objectType({ messages: withLangGraph(custom(), {
 	default: () => []
 }) });
 //#endregion
-//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___zod-to-json-schema@3.25.2_zod@4.4.3_/node_modules/@langchain/langgraph/dist/index.js
+//#region ../node_modules/.pnpm/@langchain+langgraph@0.2.74_@langchain+core@0.3.80_openai@4.104.0_zod@4.4.3___react-dom_71c097b50dd21711a24a5cabf14fc376/node_modules/@langchain/langgraph/dist/index.js
 initializeAsyncLocalStorageSingleton();
 //#endregion
 //#region ../core/dist/index.mjs
@@ -151001,7 +151001,8 @@ function buildReviewState(pr, findings) {
 		version: 1,
 		headSha: pr.metadata.headSha,
 		reviewedAt: (/* @__PURE__ */ new Date()).toISOString(),
-		findings: findings.map(toStoredFinding)
+		findings: findings.map(toStoredFinding),
+		...pr.reviewFingerprint ? { inputFingerprint: pr.reviewFingerprint } : {}
 	};
 }
 function categoryLabel(finding) {
@@ -151132,6 +151133,7 @@ var CommentPoster = class {
 		const state = buildReviewState(pr, findings);
 		const newFindings = summary.newFindings ?? findings;
 		if (newFindings.length > 0) await this.postReview(prNumber, newFindings, pr.metadata.headSha, pr.diff);
+		if ((await this.client.getPR(prNumber)).head.sha !== pr.metadata.headSha) throw new Error("PR head changed before summary could be posted");
 		await this.postSummaryComment(prNumber, summary, state);
 		return summary;
 	}
@@ -151826,6 +151828,7 @@ async function validateAnswerCitations(answer, snapshot) {
 	}
 	return answer;
 }
+const VERSION = "1.6.0";
 //#endregion
 //#region src/inputs.ts
 function injectInputsToEnv() {
@@ -152115,6 +152118,17 @@ async function handlePullRequest(context) {
 			ruleSources,
 			learnings: []
 		};
+		prContext.reviewFingerprint = createHash("sha256").update(JSON.stringify({
+			engineVersion: VERSION,
+			request: toGoRequest(prContext, files),
+			maxFiles: Number(rawMaxFiles),
+			trustedLinters: process.env.OPEN_REVIEW_TRUSTED_LINTERS === "true"
+		})).digest("hex");
+		const previous = await poster.fetchReviewState(prNumber);
+		if (previous?.headSha === prMeta.head.sha && previous.inputFingerprint === prContext.reviewFingerprint) {
+			info("Review already completed for this exact input");
+			return;
+		}
 		const result = await runGoReview(prContext, files, Number(rawMaxFiles));
 		const { findings } = result;
 		const summary = result.summary ?? buildFastReviewSummary([], 0, 0);

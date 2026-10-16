@@ -43,6 +43,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: go test ./...
+      - run: bash integrations/ci/test.sh
       - run: go vet ./...
 
       - name: Create GitHub Release

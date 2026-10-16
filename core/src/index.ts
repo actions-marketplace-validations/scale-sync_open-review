@@ -1,5 +1,5 @@
 // @openreview/core — entry point
-export const VERSION = '1.5.0';
+export const VERSION = '1.6.0';
 
 // Config
 export { config, loadConfig, validateConfig } from './config/env.js';

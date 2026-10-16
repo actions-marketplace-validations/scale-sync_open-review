@@ -173,6 +173,15 @@ describe('postReviewResults', () => {
     ).toHaveLength(1);
     expect(inlineBody).toContain('<!-- openreview-finding:');
   });
+
+  it('does not replace the summary after the PR head moves', async () => {
+    const { client, api } = makeMockClient();
+    vi.mocked(client.getPR).mockResolvedValue({ head: { sha: 'new-head' } } as never);
+    api.get.mockResolvedValue({ data: [] });
+    await expect(new CommentPoster(client).postReviewResults(7, makePr(), [], makeSummary(0))).rejects.toThrow('head changed');
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+  });
 });
 
 describe('safe inline positions', () => {

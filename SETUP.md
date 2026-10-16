@@ -51,7 +51,7 @@ The existing TypeScript CLI still reviews a GitHub pull request when provided a 
 node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123
 ```
 
-The GitHub Action lives in `action/` and includes a bundled adapter plus a Linux x64 Go executable. Use `scale-sync/open-review/action@v1.5.0` from a Linux x64 runner. It does not install dependencies when the event runs. Install Deno in an earlier workflow step to enable sandbox checks for deep review. There is no npm, PyPI, crates.io, or Go registry publication in this release.
+The GitHub Action lives in `action/` and includes a bundled adapter plus a Linux x64 Go executable. Use `scale-sync/open-review/action@v1.6.0` from a Linux x64 runner. It does not install dependencies when the event runs. Install Deno in an earlier workflow step to enable sandbox checks for deep review. A GitHub App installation token with Contents read and Pull requests read/write permissions may be passed through `github-token` instead of the workflow token. There is no npm, PyPI, or crates.io publication in this release; the Go CLI can be built from the public source tag.
 
 ## Test and troubleshoot
 
@@ -63,4 +63,4 @@ pnpm test
 go test ./...
 ```
 
-If a nonempty review reports a missing model API key, set the key for the model selected by `MAIN_MODEL` or run `go run ./cmd/open-review config set --provider openai --model gpt-4o --api-key-stdin`. See [review behavior](review/README.md) and [the release notes](_plan_docs/releases/v1.5.0.md).
+If a nonempty review reports a missing model API key, set the key for the model selected by `MAIN_MODEL` or run `go run ./cmd/open-review config set --provider openai --model gpt-4o --api-key-stdin`. See [review behavior](review/README.md) and [the release notes](_plan_docs/releases/v1.6.0.md).

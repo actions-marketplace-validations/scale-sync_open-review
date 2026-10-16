@@ -100,6 +100,7 @@ export interface PRContext {
   ruleSources?: Array<{ path: string; content: string }>;
   explicitInstructions?: string;
   learnings: string[];
+  reviewFingerprint?: string;
 }
 
 /* ------------------------------------------------------------------ */
