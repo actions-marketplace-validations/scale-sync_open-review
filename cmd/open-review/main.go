@@ -53,8 +53,14 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if len(args) > 0 && args[0] == "sarif" {
 		return runSARIF(args[1:], output)
 	}
+	if len(args) > 0 && args[0] == "mcp" {
+		return runMCP(ctx, args[1:])
+	}
+	if len(args) > 0 && args[0] == "acp" {
+		return runACP(ctx, args[1:], os.Stdin, output)
+	}
 	if len(args) == 0 || args[0] != "review" {
-		return errors.New("usage: open-review review|review-json|sarif|sessions|rules|config|completion")
+		return errors.New("usage: open-review review|review-json|sarif|sessions|rules|config|completion|mcp")
 	}
 	flags := flag.NewFlagSet("review", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -79,6 +85,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	groupSeconds := flags.Int("group-seconds", 0, "review deadline")
 	preview := flags.Bool("preview", false, "show selected and skipped files without calling a model")
 	deep := flags.Bool("deep", false, "run bounded deep verification before review")
+	mcpConfig := flags.String("mcp-config", "", "explicit MCP tool configuration")
 	effort := flags.String("effort", "medium", "review rounds: low, medium, or high")
 	maxFiles := flags.Int("max-files", 100, "maximum selected files")
 	maxFileBytes := flags.Int("max-file-bytes", 1<<20, "maximum full patch bytes per file")
@@ -97,6 +104,12 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	}
 	if *effort != "low" && *effort != "medium" && *effort != "high" {
 		return fmt.Errorf("unsupported review effort %q", *effort)
+	}
+	if *mcpConfig != "" && *sessionDir != "" {
+		return errors.New("MCP tools cannot be combined with session resume")
+	}
+	if *mcpConfig != "" && *effort == "low" {
+		return errors.New("MCP tools require medium or high review effort")
 	}
 	if len(*instruction) > 8_000 {
 		return errors.New("instruction exceeds 8 KB")
@@ -148,6 +161,14 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 			}
 		}
 		return writeOutput(output, *outputFile, rendered.Bytes())
+	}
+	if *mcpConfig != "" {
+		client, err := review.ConnectMCP(ctx, *mcpConfig)
+		if err != nil {
+			return err
+		}
+		defer client.Close()
+		ctx = review.WithMCP(ctx, client)
 	}
 	if !*quiet && len(req.Coverage) > 0 {
 		fmt.Fprintln(os.Stderr, "Review scope:")

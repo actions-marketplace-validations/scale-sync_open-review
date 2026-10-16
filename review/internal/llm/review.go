@@ -17,6 +17,7 @@ import (
 
 	"github.com/scale-sync/open-review/review/internal/agent"
 	"github.com/scale-sync/open-review/review/internal/config"
+	"github.com/scale-sync/open-review/review/internal/mcpclient"
 	"github.com/scale-sync/open-review/review/internal/model"
 	sessionstore "github.com/scale-sync/open-review/review/internal/session"
 	"github.com/scale-sync/open-review/review/internal/tool"
@@ -224,6 +225,11 @@ func reviewGroup(ctx context.Context, req model.Request, group agent.Group, read
 	task := prompt(req, group)
 	if maxRounds > 1 {
 		task += "\nFor more context, return one JSON tool call: {\"tool\":\"read_diff|read_file|list_files|search\",\"path\":\"repo-relative path\",\"query\":\"literal search text\"}. Repository file tools use the pinned local Git revision or reviewed GitHub head when available. To record one finding, return {\"tool\":\"comment\",\"finding\":{...same finding fields...}}. To finish after comments, return {\"tool\":\"complete\"}. You may instead return {\"findings\":[...]} at any round. Never put more than one tool call in one response."
+		if client := mcpclient.FromContext(ctx); client != nil {
+			for _, entry := range client.Tools() {
+				task += "\nOptional configured tool: " + entry.Name + ". It accepts only configured static arguments; path and query are ignored."
+			}
+		}
 	}
 	history := []toolRound{}
 	items := []rawFinding{}
@@ -282,7 +288,16 @@ func reviewGroup(ctx context.Context, req model.Request, group agent.Group, read
 			continue
 		}
 		call := tool.Request{Name: output.Tool, Path: output.Path, Query: output.Query}
-		observation, err := reader.Run(ctx, call)
+		var observation string
+		if strings.HasPrefix(call.Name, "mcp/") {
+			if client := mcpclient.FromContext(ctx); client != nil {
+				observation, err = client.Call(ctx, call.Name)
+			} else {
+				err = errors.New("MCP tool is not configured")
+			}
+		} else {
+			observation, err = reader.Run(ctx, call)
+		}
 		if store := sessionstore.FromContext(ctx); store != nil {
 			status := "complete"
 			if err != nil {

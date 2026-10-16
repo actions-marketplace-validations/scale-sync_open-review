@@ -3,11 +3,11 @@
 [![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Open-source, agentic code review tool. v1.6.0 runs coordinated fast and deep reviews in Go for local Git changes, whole files, and GitHub pull requests, with bounded repository reads, review rounds, per-file rules, precise findings, resumable local sessions, SARIF output, provider setup, and script-friendly results. TypeScript 7 handles GitHub events, review state, and conversation.
+Open-source, agentic code review tool. v1.7.0 runs coordinated fast and deep reviews in Go for local Git changes, whole files, and GitHub pull requests, with bounded repository reads, review rounds, per-file rules, precise findings, resumable local sessions, SARIF output, provider setup, and script-friendly results. TypeScript 7 handles GitHub events, review state, and conversation. The Go CLI also offers opt-in MCP tools and an experimental ACP editor adapter.
 
-## v1.6.0 from source
+## v1.7.0 from source
 
-Requires Go 1.23+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
+Requires Go 1.25+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
 
 ```bash
 git clone https://github.com/scale-sync/open-review.git
@@ -30,9 +30,11 @@ go run ./cmd/open-review review --scan src --preview --output json
 go run ./cmd/open-review review --commit HEAD --output sarif --output-file review.sarif
 go run ./cmd/open-review sessions list --dir /tmp/open-review-sessions
 go run ./cmd/open-review sessions serve --dir /tmp/open-review-sessions
+go run ./cmd/open-review mcp serve --repo .
+go run ./cmd/open-review acp serve --repo .
 ```
 
-Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md), [CI examples](integrations/ci/README.md), and [v1.6.0 release notes](_plan_docs/releases/v1.6.0.md).
+Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md), [CI examples](integrations/ci/README.md), and [v1.7.0 release notes](_plan_docs/releases/v1.7.0.md).
 
 ## Current capabilities
 
@@ -64,7 +66,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: scale-sync/open-review/action@v1.6.0
+      - uses: scale-sync/open-review/action@v1.7.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}

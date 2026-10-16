@@ -47,6 +47,15 @@ func TestRejectsUnknownReviewEffort(t *testing.T) {
 	}
 }
 
+func TestMCPRejectsSessionResumeAndLowEffort(t *testing.T) {
+	for _, args := range [][]string{{"review", "--mcp-config", "tools.json", "--session-dir", "sessions"}, {"review", "--mcp-config", "tools.json", "--effort", "low"}} {
+		var output bytes.Buffer
+		if err := run(context.Background(), args, &output); err == nil {
+			t.Fatalf("accepted incompatible flags: %v", args)
+		}
+	}
+}
+
 func TestPreviewShowsSelectedAndSkippedWithoutBridge(t *testing.T) {
 	repo := t.TempDir()
 	if out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput(); err != nil {

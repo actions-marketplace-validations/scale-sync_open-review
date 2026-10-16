@@ -16,6 +16,7 @@ import (
 	"github.com/scale-sync/open-review/review/internal/gitcmd"
 	"github.com/scale-sync/open-review/review/internal/linter"
 	"github.com/scale-sync/open-review/review/internal/llm"
+	"github.com/scale-sync/open-review/review/internal/mcpclient"
 	"github.com/scale-sync/open-review/review/internal/model"
 	"github.com/scale-sync/open-review/review/internal/sarif"
 	"github.com/scale-sync/open-review/review/internal/scan"
@@ -62,6 +63,17 @@ func SetFindingTriage(dir, id, repo, findingID, state string) (map[string]string
 	return session.SetTriage(dir, id, repo, findingID, state)
 }
 func FormatSARIF(result Result) ([]byte, error) { return sarif.Format(result) }
+
+func ConnectMCP(ctx context.Context, path string) (*mcpclient.Client, error) {
+	config, err := mcpclient.Load(path)
+	if err != nil {
+		return nil, err
+	}
+	return mcpclient.Connect(ctx, config)
+}
+func WithMCP(ctx context.Context, client *mcpclient.Client) context.Context {
+	return mcpclient.WithClient(ctx, client)
+}
 
 func LoadProviderConfig() (ProviderConfig, error)   { return config.Load() }
 func SaveProviderConfig(value ProviderConfig) error { return config.Save(value) }

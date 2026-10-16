@@ -1,5 +1,17 @@
 # Local review engine
 
+## Protocol adapters (v1.7.0)
+
+`review --mcp-config PATH` connects only to the 1–4 MCP servers explicitly named in a local JSON config. Each server has an `allow` list of tool names. A model may choose one allowed tool, but the call uses only static `arguments` from that config; model-provided `path` and `query` are never sent. Local processes receive only `PATH` and named `env` variables. Remote servers require HTTPS, can read a bearer token from `tokenEnv`, and never follow redirects. Each call has a bounded timeout and response. Example:
+
+MCP tools require `--effort medium|high`. They cannot be combined with `--session-dir` because session cache keys do not include tool server state.
+
+```json
+{"servers":[{"name":"docs","command":["/path/to/mcp-server"],"allow":["lookup"],"arguments":{"lookup":{"topic":"public API"}},"timeoutSeconds":10}]}
+```
+
+`mcp serve --repo PATH` exposes the same engine as one `review` tool. Use `mode: "scan"` and `scanPath` to review whole files. The repository root is fixed at process launch; `preview: true` reports selected files and rules without a model call. `acp serve --repo PATH` is an experimental ACP v1 stdio adapter. It accepts one session at the configured root, runs workspace review for a text prompt, or scans a path when the prompt starts with `scan: `. It emits progress, finding file locations, a JSON result message, and a cancellation response. No external editor interoperability is claimed yet.
+
 `cmd/open-review` is the Go command. `gitcmd` resolves local Git inputs, `diff` records each full patch and its metadata, `agent` selects files and checks reviewer output, and `model` defines the versioned JSON request and response. The current JSON shape is recorded in `schema/review-v2.json`.
 
 Use `go run ./cmd/open-review review --workspace` from the repository root. `--repo` selects a different checkout. Choose one mode: `--workspace`, `--base REF --head REF`, `--commit REF`, or `--scan PATH`. Scan reviews a whole file or directory without Git; the path stays inside `--repo`. Add `--deep` for bounded Deno verification, `--output json` for machine-readable output, `--output sarif` for code scanning, or `--preview` to show coverage without a model call.
