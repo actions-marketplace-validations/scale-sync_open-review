@@ -59,8 +59,11 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if len(args) > 0 && args[0] == "acp" {
 		return runACP(ctx, args[1:], os.Stdin, output)
 	}
+	if len(args) > 0 && args[0] == "delegate" {
+		return runDelegate(ctx, args[1:], output)
+	}
 	if len(args) == 0 || args[0] != "review" {
-		return errors.New("usage: open-review review|review-json|sarif|sessions|rules|config|completion|mcp")
+		return errors.New("usage: open-review review|delegate|review-json|sarif|sessions|rules|config|completion|mcp|acp")
 	}
 	flags := flag.NewFlagSet("review", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)

@@ -1,6 +1,6 @@
 {
   "name": "open-review-workspace",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "description": "Open-source agentic code review tool — AI-powered bug detection, sandboxed execution, codebase-aware chat, full GitHub sync",
@@ -18,7 +18,8 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "review": "go run ./cmd/open-review review"
+    "review": "go run ./cmd/open-review review",
+    "dev:web": "pnpm --filter @openreview/web dev"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

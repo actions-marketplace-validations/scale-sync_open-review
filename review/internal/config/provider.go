@@ -94,7 +94,7 @@ func Save(saved Provider) error {
 }
 
 func Validate(saved Provider) error {
-	if saved.Provider != "" && saved.Provider != "openai" && saved.Provider != "anthropic" && saved.Provider != "gemini" {
+	if saved.Provider != "" && saved.Provider != "openai" && saved.Provider != "anthropic" && saved.Provider != "gemini" && saved.Provider != "openrouter" {
 		return fmt.Errorf("unsupported provider %q", saved.Provider)
 	}
 	if strings.TrimSpace(saved.Model) != saved.Model || strings.ContainsAny(saved.Model, "\r\n") {
@@ -135,13 +135,19 @@ func Resolve(override model.ModelIdentity) (Provider, error) {
 			name = "claude-sonnet-4-5"
 		case "gemini":
 			name = "gemini-2.5-flash"
+		case "openrouter":
+			name = "openrouter/free"
 		default:
 			name = "gpt-4o"
 		}
 	}
-	baseEnv := map[string]string{"openai": "OPENAI_BASE_URL", "anthropic": "ANTHROPIC_BASE_URL", "gemini": "GEMINI_BASE_URL"}[provider]
-	keyEnv := map[string]string{"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY"}[provider]
-	resolved := Provider{Provider: provider, Model: name, BaseURL: first(override.BaseURL, os.Getenv(baseEnv))}
+	baseEnv := map[string]string{"openai": "OPENAI_BASE_URL", "anthropic": "ANTHROPIC_BASE_URL", "gemini": "GEMINI_BASE_URL", "openrouter": "OPENROUTER_BASE_URL"}[provider]
+	keyEnv := map[string]string{"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "openrouter": "OPENROUTER_API_KEY"}[provider]
+	defaultBaseURL := ""
+	if provider == "openrouter" {
+		defaultBaseURL = "https://openrouter.ai/api/v1"
+	}
+	resolved := Provider{Provider: provider, Model: name, BaseURL: first(override.BaseURL, os.Getenv(baseEnv), defaultBaseURL)}
 	if saved.Provider == provider {
 		resolved.BaseURL = first(resolved.BaseURL, saved.BaseURL)
 		resolved.APIKey = first(os.Getenv(keyEnv), saved.APIKey)

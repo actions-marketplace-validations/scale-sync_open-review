@@ -30,6 +30,7 @@ func TestGoReviewPreservesFullChanges(t *testing.T) {
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[{\"category\":\"bug\",\"severity\":\"non-severe\",\"file\":\"main.go\",\"startLine\":1,\"endLine\":1,\"title\":\"Bad value\",\"explanation\":\"The value is wrong\"}]}"}}]}`))
 	}))
 	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
 	t.Setenv("OPENAI_API_KEY", "test-key")
 	t.Setenv("OPENAI_BASE_URL", server.URL+"/v1")
 	t.Setenv("MAIN_MODEL", "gpt-4o")
@@ -53,6 +54,7 @@ func TestExternalRequestCannotGrantLocalFileReads(t *testing.T) {
 }
 
 func TestExternalReviewUsesOnlyMatchingRuleSources(t *testing.T) {
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
 	t.Setenv("OPENAI_API_KEY", "test-key")
 	var prompt string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -112,6 +114,7 @@ func TestDeepReviewUsesSandboxAuditAndGoValidation(t *testing.T) {
 		_, _ = w.Write(encoded)
 	}))
 	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
 	t.Setenv("OPENAI_API_KEY", "test-key")
 	t.Setenv("OPENAI_BASE_URL", server.URL)
 	t.Setenv("MAIN_MODEL", "gpt-4o")
@@ -124,6 +127,7 @@ func TestDeepReviewUsesSandboxAuditAndGoValidation(t *testing.T) {
 
 func TestDeepReviewWithoutDenoRecordsUnverifiedPass(t *testing.T) {
 	t.Setenv("GITHUB_ACTIONS", "false")
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
 	t.Setenv("PATH", t.TempDir())
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`))

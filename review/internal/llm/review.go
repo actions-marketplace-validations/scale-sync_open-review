@@ -248,7 +248,7 @@ func reviewGroup(ctx context.Context, req model.Request, group agent.Group, read
 			Query    string        `json:"query"`
 			Finding  *rawFinding   `json:"finding"`
 		}
-		if err := json.Unmarshal([]byte(strings.TrimSpace(answer)), &output); err != nil || (output.Findings == nil && output.Tool == "") || (output.Findings != nil && output.Tool != "") {
+		if err := json.Unmarshal([]byte(reviewJSON(answer)), &output); err != nil || (output.Findings == nil && output.Tool == "") || (output.Findings != nil && output.Tool != "") {
 			return nil, round, tools, compressed, errors.New("model returned malformed review JSON")
 		}
 		if output.Findings != nil {
@@ -317,6 +317,23 @@ func reviewGroup(ctx context.Context, req model.Request, group agent.Group, read
 		tools++
 	}
 	return nil, maxRounds, tools, compressed, errors.New("review did not complete")
+}
+
+func reviewJSON(answer string) string {
+	answer = strings.TrimSpace(answer)
+	if strings.HasPrefix(answer, "```") && strings.HasSuffix(answer, "```") {
+		if newline := strings.IndexByte(answer, '\n'); newline >= 0 {
+			answer = strings.TrimSpace(answer[newline+1 : len(answer)-3])
+		}
+	}
+	if json.Valid([]byte(answer)) {
+		return answer
+	}
+	start, end := strings.IndexByte(answer, '{'), strings.LastIndexByte(answer, '}')
+	if start >= 0 && end > start && json.Valid([]byte(answer[start:end+1])) {
+		return answer[start : end+1]
+	}
+	return answer
 }
 
 func validFinding(req model.Request, group agent.Group, item rawFinding) error {

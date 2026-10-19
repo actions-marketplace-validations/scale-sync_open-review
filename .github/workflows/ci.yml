@@ -48,4 +48,31 @@ jobs:
       - run: pnpm test
       - run: go test ./...
       - run: bash integrations/ci/test.sh
+
+      - run: bash integrations/agents/test.sh
       - run: go vet ./...
+
+  editor-adapters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test VS Code adapter
+        working-directory: extensions/vscode
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Test and package JetBrains adapter
+        working-directory: extensions/jetbrains
+        run: ./gradlew test buildPlugin --no-daemon

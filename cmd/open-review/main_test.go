@@ -137,6 +137,7 @@ func TestRejectsOutsideRepository(t *testing.T) {
 }
 
 func TestExternalReviewAppliesGoSelection(t *testing.T) {
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Messages []struct {

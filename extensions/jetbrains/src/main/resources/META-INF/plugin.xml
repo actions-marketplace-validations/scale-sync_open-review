@@ -1,0 +1,12 @@
+<idea-plugin>
+  <id>dev.openreview.jetbrains</id>
+  <name>open-review</name>
+  <version>1.8.0</version>
+  <vendor>open-review</vendor>
+  <description>Review local changes with the open-review Go CLI.</description>
+  <idea-version since-build="262"/>
+  <depends>com.intellij.modules.platform</depends>
+  <extensions defaultExtensionNs="com.intellij">
+    <toolWindow id="open-review" anchor="bottom" factoryClass="dev.openreview.actions.ReviewToolWindow"/>
+  </extensions>
+</idea-plugin>

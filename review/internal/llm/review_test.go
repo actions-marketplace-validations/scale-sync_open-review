@@ -107,10 +107,12 @@ func TestReviewResumeReusesPlanAndGroups(t *testing.T) {
 }
 
 func TestModelProvidersAndMalformedOutput(t *testing.T) {
-	tests := []struct{ model, key, base, endpoint, response string }{
-		{"gpt-4o", "OPENAI_API_KEY", "OPENAI_BASE_URL", "/chat/completions", `{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`},
-		{"claude-sonnet", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "/v1/messages", `{"content":[{"text":"{\"findings\":[]}"}]}`},
-		{"gemini-flash", "GEMINI_API_KEY", "GEMINI_BASE_URL", "/v1beta/models/gemini-flash:generateContent", `{"candidates":[{"content":{"parts":[{"text":"{\"findings\":[]}"}]}}]}`},
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	tests := []struct{ provider, model, key, base, endpoint, response string }{
+		{"openai", "gpt-4o", "OPENAI_API_KEY", "OPENAI_BASE_URL", "/chat/completions", `{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`},
+		{"anthropic", "claude-sonnet", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "/v1/messages", `{"content":[{"text":"{\"findings\":[]}"}]}`},
+		{"gemini", "gemini-flash", "GEMINI_API_KEY", "GEMINI_BASE_URL", "/v1beta/models/gemini-flash:generateContent", `{"candidates":[{"content":{"parts":[{"text":"{\"findings\":[]}"}]}}]}`},
+		{"openrouter", "openrouter/free", "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "/chat/completions", `{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.model, func(t *testing.T) {
@@ -123,7 +125,7 @@ func TestModelProvidersAndMalformedOutput(t *testing.T) {
 			defer server.Close()
 			t.Setenv(tc.key, "test-key")
 			t.Setenv(tc.base, server.URL)
-			answer, err := call(context.Background(), tc.model, "diff")
+			answer, err := callModel(context.Background(), model.ModelIdentity{Provider: tc.provider, Name: tc.model}, "diff")
 			if err != nil || answer != `{"findings":[]}` {
 				t.Fatalf("answer = %q, %v", answer, err)
 			}
@@ -456,5 +458,26 @@ func TestReviewEffortStopsToolsAndLowFinishesEarly(t *testing.T) {
 	response, err := Review(context.Background(), req)
 	if err != nil || response.Partial || calls.Load() != 1 {
 		t.Fatalf("low calls = %d, err = %v", calls.Load(), err)
+	}
+}
+
+func TestReviewAcceptsFencedJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		encoded, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": "```json\n{\"findings\":[]}\n```"}}}})
+		_, _ = w.Write(encoded)
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	response, err := Review(context.Background(), model.Request{ReviewEffort: "low", Files: []string{"main.go"}, Diff: "diff --git a/main.go b/main.go\n+safe\n"})
+	if err != nil || len(response.Findings) != 0 {
+		t.Fatalf("response = %+v, err = %v", response, err)
+	}
+}
+
+func TestReviewJSONExtractsObjectAfterPreamble(t *testing.T) {
+	if got := reviewJSON("Explanation before output.\n{\"findings\":[]}"); got != `{"findings":[]}` {
+		t.Fatalf("review JSON = %q", got)
 	}
 }

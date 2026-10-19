@@ -1,8 +1,16 @@
 # Dependencies
 node_modules/
+web/.next/
+web/next-env.d.ts
+web/tsconfig.tsbuildinfo
+web/.impeccable/
 
 # Build output
 dist/
+/open-review
+extensions/jetbrains/.gradle/
+extensions/jetbrains/.intellijPlatform/
+extensions/jetbrains/build/
 !action/dist/
 action/dist/*
 !action/dist/*.mjs
@@ -31,3 +39,6 @@ CLAUDE.md
 
 # Local research material
 _research_refs/
+benchmarks/data/
+benchmarks/cache/
+benchmarks/results/

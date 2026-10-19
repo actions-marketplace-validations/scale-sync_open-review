@@ -20,10 +20,10 @@ The [target repository tree](../_decision_docs/Target_Repository_Tree.md) shows 
 | --- | ---: | ---: | --- |
 | I. Daily review foundation | 5 of 5 | 0 | Complete |
 | II. Review depth and workflow | 7 of 7 | 0 | Complete |
-| III. Ecosystem and distribution | 1 of 6 | 5 | v1.8.0 |
-| **Total** | **13 of 18** | **5** | **v1.8.0** |
+| III. Ecosystem and distribution | 2 of 6 | 4 | v1.9.0 |
+| **Total** | **14 of 18** | **4** | **v1.9.0** |
 
-Tags and GitHub releases are planned through v1.7.0; local protocol tests passed before this batch was pushed. Release publication does not prove live model quality or live PR posting. The benchmark runner and scorer are prepared locally, but no complete, adjudicated open-review run exists, so the product leaderboard has no scores. The website and benchmark work are still uncommitted and are not part of v1.7.0.
+Tags and GitHub releases are planned through v1.8.0; host-agent delegation and IDE adapter suites passed. Release publication does not prove live model quality or live PR posting. The benchmark runner and scorer are prepared locally, but no complete, adjudicated open-review run exists, so the product leaderboard has no scores. The website and benchmark work are included with this release.
 
 ## Complete feature list by release
 

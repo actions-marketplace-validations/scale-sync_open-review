@@ -15,6 +15,7 @@ import (
 )
 
 func TestACPWorkspaceReviewAndMalformedMessage(t *testing.T) {
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
 	root := t.TempDir()
 	root, _ = filepath.EvalSymlinks(root)
 	if output, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput(); err != nil {

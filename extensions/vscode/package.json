@@ -1,0 +1,20 @@
+{
+  "name": "open-review-vscode",
+  "version": "1.8.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/extension.js",
+  "engines": {"vscode": "^1.100.0"},
+  "activationEvents": ["onCommand:openReview.preview", "onCommand:openReview.review", "onCommand:openReview.providerSetup"],
+  "contributes": {
+    "commands": [
+      {"command":"openReview.preview","title":"open-review: Preview Scope"},
+      {"command":"openReview.review","title":"open-review: Review Workspace"},
+      {"command":"openReview.providerSetup","title":"open-review: Set Up Provider"},
+      {"command":"openReview.refreshTriage","title":"open-review: Refresh Finding Status"}
+    ],
+    "configuration": {"title":"open-review","properties":{"openReview.cliPath":{"type":"string","default":"open-review","description":"Path to the open-review Go CLI"}}}
+  },
+  "scripts": {"build":"tsc -p tsconfig.json","typecheck":"tsc --noEmit -p tsconfig.json","test":"npm run build && node --test dist/services/*.test.js"},
+  "devDependencies": {"@types/node":"^25.5.0","@types/vscode":"^1.140.0","typescript":"^7.0.2"}
+}

@@ -1,6 +1,6 @@
 # Contributing to open-review
 
-Thank you for your interest in contributing to OpenReview! This document covers the process for contributing to this project.
+Thank you for your interest in contributing to open-review! This document covers the process for contributing to this project.
 
 ## Getting Started
 
@@ -12,7 +12,7 @@ Thank you for your interest in contributing to OpenReview! This document covers 
    ```
 3. **Install dependencies:**
    ```bash
-   nvm use        # Node 22 via .nvmrc
+   nvm use
    pnpm install
    ```
 4. **Create a branch** for your work:
@@ -26,14 +26,15 @@ Thank you for your interest in contributing to OpenReview! This document covers 
 
 ```bash
 pnpm build                          # all workspaces
-pnpm --filter @openreview/core build # single workspace
+go build ./cmd/open-review          # Go CLI
+pnpm --filter @openreview/web build # website
 ```
 
 ### Test
 
 ```bash
 pnpm test                                        # all tests
-npx vitest run core/src/config/env.test.ts       # single file
+go test ./...                                     # Go tests
 pnpm test:watch                                  # watch mode
 ```
 
@@ -59,19 +60,21 @@ pnpm format        # format all files
 pnpm format:check  # check formatting
 ```
 
-All code must pass `pnpm lint`, `pnpm typecheck`, and `pnpm test` before submitting a PR.
+Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `go test ./...` before submitting a PR.
 
 ## Project Structure
 
 ```
-core/    # @openreview/core — review engine, LLM router, GitHub client
-cli/     # open-review — TypeScript PR CLI and local review bridge
-action/  # @openreview/action — GitHub Action
-web/     # Phase 2 placeholder (React 19 + Vite 8)
+cmd/     # Go CLI entry point
+review/  # Go review engine and its tests
+core/    # shared TypeScript modules
+cli/     # TypeScript pull request CLI
+action/  # GitHub Action adapter and bundled runtime
+web/     # Next.js website and documentation
 ```
 
-- `core/` contains all business logic. `cli/` and `action/` are thin wrappers.
-- All packages use ESM (`"type": "module"`).
+- The Go engine owns local review selection and finding validation. The TypeScript CLI and Action handle GitHub integration.
+- TypeScript packages use ESM (`"type": "module"`).
 - ESLint 10 flat config (`eslint.config.js`) — no `.eslintrc` files.
 - Vitest for testing — no Jest.
 - tsdown for bundling — no tsup.
@@ -85,7 +88,7 @@ web/     # Phase 2 placeholder (React 19 + Vite 8)
    ```
 2. Run all checks:
    ```bash
-   pnpm lint && pnpm typecheck && pnpm test
+   pnpm lint && pnpm typecheck && pnpm test && go test ./...
    ```
 3. Push your branch and open a PR against `main`.
 4. Fill in the PR template with a description of your changes.
@@ -118,12 +121,12 @@ Open an issue on GitHub with:
 
 - Steps to reproduce
 - Expected vs actual behavior
-- Node.js version, OS, and relevant environment details
+- Go and Node.js versions, OS, and relevant environment details
 
 ## Project Guidance Files
 
 - [CLAUDE.md](CLAUDE.md) — Architecture overview, commands, conventions for AI coding agents
-- [REVIEW.md](REVIEW.md) — OpenReview's own review rules (code style, architecture, testing, security)
+- [REVIEW.md](REVIEW.md) — open-review's own review rules (code style, architecture, testing, security)
 - [SETUP.md](SETUP.md) — Detailed setup guide with configuration reference and troubleshooting
 
 ## Code of Conduct

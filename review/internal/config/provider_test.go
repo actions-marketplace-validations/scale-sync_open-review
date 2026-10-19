@@ -64,3 +64,15 @@ func TestProviderConfigRejectsMalformedAndUnsafeFile(t *testing.T) {
 		t.Fatal("remote HTTP endpoint accepted")
 	}
 }
+
+func TestOpenRouterUsesDedicatedEnvironmentAndSafeDefault(t *testing.T) {
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENROUTER_API_KEY", "gateway-test-key")
+	resolved, err := Resolve(model.ModelIdentity{Provider: "openrouter"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.Model != "openrouter/free" || resolved.BaseURL != "https://openrouter.ai/api/v1" || resolved.APIKey != "gateway-test-key" {
+		t.Fatalf("resolved = %+v", resolved)
+	}
+}
