@@ -20,6 +20,7 @@ import (
 	"github.com/scale-sync/open-review/review/internal/mcpclient"
 	"github.com/scale-sync/open-review/review/internal/model"
 	sessionstore "github.com/scale-sync/open-review/review/internal/session"
+	"github.com/scale-sync/open-review/review/internal/telemetry"
 	"github.com/scale-sync/open-review/review/internal/tool"
 )
 
@@ -425,6 +426,17 @@ func callModel(ctx context.Context, identity model.ModelIdentity, content string
 			}
 		}()
 	}
+	_, span := telemetry.Start(ctx, "model_call")
+	if span != nil {
+		span.SetAttribute("model.provider", selected.Provider)
+		span.SetAttribute("model.name", selected.Model)
+		defer func() {
+			if err != nil {
+				span.RecordError(err)
+			}
+			span.End()
+		}()
+	}
 	provider, key, modelName := selected.Provider, selected.APIKey, selected.Model
 	var endpoint string
 	var body any
@@ -436,6 +448,7 @@ func callModel(ctx context.Context, identity model.ModelIdentity, content string
 			endpoint = strings.TrimRight(selected.BaseURL, "/") + "/v1/messages"
 		}
 		headers["x-api-key"], headers["anthropic-version"] = key, "2023-06-01"
+		headers["anthropic-beta"] = "prompt-caching-2024-07-31"
 		body = map[string]any{"model": modelName, "max_tokens": outputCap, "messages": []any{map[string]string{"role": "user", "content": content}}}
 	case "gemini":
 		endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + url.PathEscape(modelName) + ":generateContent"
@@ -444,6 +457,18 @@ func callModel(ctx context.Context, identity model.ModelIdentity, content string
 		}
 		headers["x-goog-api-key"] = key
 		body = map[string]any{"contents": []any{map[string]any{"parts": []any{map[string]string{"text": content}}}}, "generationConfig": map[string]any{"responseMimeType": "application/json", "maxOutputTokens": outputCap}}
+	case "azure":
+		if strings.Contains(selected.BaseURL, "/chat/completions") {
+			endpoint = selected.BaseURL
+		} else {
+			endpoint = strings.TrimRight(selected.BaseURL, "/") + "/openai/deployments/" + modelName + "/chat/completions?api-version=2024-02-15-preview"
+		}
+		headers["api-key"] = key
+		body = map[string]any{"model": modelName, "messages": []any{map[string]string{"role": "user", "content": content}}, "response_format": map[string]string{"type": "json_object"}, "max_tokens": outputCap}
+	case "bedrock":
+		endpoint = strings.TrimRight(selected.BaseURL, "/") + "/model/" + modelName + "/invoke"
+		headers["x-api-key"] = key
+		body = map[string]any{"anthropic_version": "bedrock-2023-05-31", "max_tokens": outputCap, "messages": []any{map[string]string{"role": "user", "content": content}}}
 	default:
 		endpoint = "https://api.openai.com/v1/chat/completions"
 		if selected.BaseURL != "" {
@@ -456,18 +481,33 @@ func callModel(ctx context.Context, identity model.ModelIdentity, content string
 	if err != nil {
 		return "", err
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(input))
-	if err != nil {
-		return "", err
-	}
-	request.Header.Set("Content-Type", "application/json")
-	for name, value := range headers {
-		request.Header.Set(name, value)
-	}
 	client := &http.Client{Timeout: requestTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	response, err := client.Do(request)
-	if err != nil {
-		return "", fmt.Errorf("%s model request: %w", provider, err)
+	var response *http.Response
+	maxAttempts := 3
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		request, reqErr := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(input))
+		if reqErr != nil {
+			return "", reqErr
+		}
+		request.Header.Set("Content-Type", "application/json")
+		for name, value := range headers {
+			request.Header.Set(name, value)
+		}
+		res, doErr := client.Do(request)
+		if doErr != nil {
+			if attempt == maxAttempts-1 || ctx.Err() != nil {
+				return "", fmt.Errorf("%s model request: %w", provider, doErr)
+			}
+			time.Sleep(time.Duration(attempt+1) * 20 * time.Millisecond)
+			continue
+		}
+		if (res.StatusCode == 429 || res.StatusCode >= 500) && attempt < maxAttempts-1 && ctx.Err() == nil {
+			res.Body.Close()
+			time.Sleep(time.Duration(attempt+1) * 30 * time.Millisecond)
+			continue
+		}
+		response = res
+		break
 	}
 	defer response.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 1<<20+1))
@@ -506,6 +546,29 @@ func callModel(ctx context.Context, identity model.ModelIdentity, content string
 			return "", errors.New("invalid Gemini response")
 		}
 		answer = output.Candidates[0].Content.Parts[0].Text
+	case "bedrock":
+		var output struct {
+			Content []struct {
+				Text string `json:"text"`
+			} `json:"content"`
+			Output struct {
+				Message struct {
+					Content []struct {
+						Text string `json:"text"`
+					} `json:"content"`
+				} `json:"message"`
+			} `json:"output"`
+		}
+		if err := json.Unmarshal(raw, &output); err != nil {
+			return "", errors.New("invalid Bedrock response")
+		}
+		if len(output.Content) > 0 {
+			answer = output.Content[0].Text
+		} else if len(output.Output.Message.Content) > 0 {
+			answer = output.Output.Message.Content[0].Text
+		} else {
+			return "", errors.New("empty Bedrock response")
+		}
 	default:
 		var output struct {
 			Choices []struct {
@@ -534,6 +597,11 @@ func callModel(ctx context.Context, identity model.ModelIdentity, content string
 	_ = json.Unmarshal(raw, &usage)
 	promptTokens := max(usage.Usage.PromptTokens, usage.Usage.InputTokens, usage.UsageMetadata.PromptTokenCount)
 	outputTokens := max(usage.Usage.CompletionTokens, usage.Usage.OutputTokens, usage.UsageMetadata.CandidatesTokenCount)
+	if span != nil {
+		span.SetAttribute("tokens.prompt", promptTokens)
+		span.SetAttribute("tokens.output", outputTokens)
+		span.SetAttribute("tokens.total", promptTokens+outputTokens)
+	}
 	if record(ctx, len(content), len(answer), promptTokens, outputTokens, outputCap) {
 		return "", ErrBudget
 	}

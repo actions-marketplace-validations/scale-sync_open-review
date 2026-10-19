@@ -94,7 +94,7 @@ func Save(saved Provider) error {
 }
 
 func Validate(saved Provider) error {
-	if saved.Provider != "" && saved.Provider != "openai" && saved.Provider != "anthropic" && saved.Provider != "gemini" && saved.Provider != "openrouter" {
+	if saved.Provider != "" && saved.Provider != "openai" && saved.Provider != "anthropic" && saved.Provider != "gemini" && saved.Provider != "openrouter" && saved.Provider != "azure" && saved.Provider != "bedrock" {
 		return fmt.Errorf("unsupported provider %q", saved.Provider)
 	}
 	if strings.TrimSpace(saved.Model) != saved.Model || strings.ContainsAny(saved.Model, "\r\n") {
@@ -102,8 +102,8 @@ func Validate(saved Provider) error {
 	}
 	if saved.BaseURL != "" {
 		u, err := url.Parse(saved.BaseURL)
-		if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Scheme != "https" && !(u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1"))) {
-			return errors.New("base URL must use HTTPS or local HTTP without credentials or query")
+		if err != nil || u.Host == "" || u.User != nil || u.Fragment != "" || (u.Scheme != "https" && !(u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1"))) {
+			return errors.New("base URL must use HTTPS or local HTTP without credentials")
 		}
 	}
 	return nil
@@ -137,22 +137,57 @@ func Resolve(override model.ModelIdentity) (Provider, error) {
 			name = "gemini-2.5-flash"
 		case "openrouter":
 			name = "openrouter/free"
+		case "azure":
+			name = "gpt-4o"
+		case "bedrock":
+			name = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 		default:
 			name = "gpt-4o"
 		}
 	}
-	baseEnv := map[string]string{"openai": "OPENAI_BASE_URL", "anthropic": "ANTHROPIC_BASE_URL", "gemini": "GEMINI_BASE_URL", "openrouter": "OPENROUTER_BASE_URL"}[provider]
-	keyEnv := map[string]string{"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "openrouter": "OPENROUTER_API_KEY"}[provider]
+	baseEnv := map[string]string{
+		"openai":     "OPENAI_BASE_URL",
+		"anthropic":  "ANTHROPIC_BASE_URL",
+		"gemini":     "GEMINI_BASE_URL",
+		"openrouter": "OPENROUTER_BASE_URL",
+		"azure":      "AZURE_OPENAI_BASE_URL",
+		"bedrock":    "AWS_BEDROCK_BASE_URL",
+	}[provider]
+	keyEnv := map[string]string{
+		"openai":     "OPENAI_API_KEY",
+		"anthropic":  "ANTHROPIC_API_KEY",
+		"gemini":     "GEMINI_API_KEY",
+		"openrouter": "OPENROUTER_API_KEY",
+		"azure":      "AZURE_OPENAI_API_KEY",
+		"bedrock":    "AWS_BEDROCK_API_KEY",
+	}[provider]
+
+	resolvedBase := os.Getenv(baseEnv)
+	if provider == "azure" && resolvedBase == "" {
+		resolvedBase = os.Getenv("AZURE_OPENAI_ENDPOINT")
+	}
+	if provider == "bedrock" && resolvedBase == "" {
+		resolvedBase = os.Getenv("BEDROCK_BASE_URL")
+	}
 	defaultBaseURL := ""
 	if provider == "openrouter" {
 		defaultBaseURL = "https://openrouter.ai/api/v1"
 	}
-	resolved := Provider{Provider: provider, Model: name, BaseURL: first(override.BaseURL, os.Getenv(baseEnv), defaultBaseURL)}
+	resolved := Provider{Provider: provider, Model: name, BaseURL: first(override.BaseURL, resolvedBase, defaultBaseURL)}
+
+	resolvedKey := os.Getenv(keyEnv)
+	if provider == "azure" && resolvedKey == "" {
+		resolvedKey = os.Getenv("AZURE_API_KEY")
+	}
+	if provider == "bedrock" && resolvedKey == "" {
+		resolvedKey = os.Getenv("BEDROCK_API_KEY")
+	}
+
 	if saved.Provider == provider {
 		resolved.BaseURL = first(resolved.BaseURL, saved.BaseURL)
-		resolved.APIKey = first(os.Getenv(keyEnv), saved.APIKey)
+		resolved.APIKey = first(resolvedKey, saved.APIKey)
 	} else {
-		resolved.APIKey = os.Getenv(keyEnv)
+		resolved.APIKey = resolvedKey
 	}
 	if err := Validate(resolved); err != nil {
 		return Provider{}, err
@@ -169,6 +204,12 @@ func infer(name string) string {
 		return "anthropic"
 	case strings.HasPrefix(name, "gemini-"):
 		return "gemini"
+	case strings.HasPrefix(name, "openrouter/"):
+		return "openrouter"
+	case strings.HasPrefix(name, "azure/") || strings.Contains(name, "azure"):
+		return "azure"
+	case strings.HasPrefix(name, "bedrock/") || strings.Contains(name, "anthropic.claude"):
+		return "bedrock"
 	default:
 		return "openai"
 	}

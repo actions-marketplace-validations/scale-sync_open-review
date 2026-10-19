@@ -76,3 +76,26 @@ func TestOpenRouterUsesDedicatedEnvironmentAndSafeDefault(t *testing.T) {
 		t.Fatalf("resolved = %+v", resolved)
 	}
 }
+
+func TestAzureAndBedrockProviders(t *testing.T) {
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("AZURE_OPENAI_API_KEY", "azure-key-123")
+	t.Setenv("AZURE_OPENAI_ENDPOINT", "https://test-resource.openai.azure.com")
+	azure, err := Resolve(model.ModelIdentity{Provider: "azure"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if azure.Provider != "azure" || azure.Model != "gpt-4o" || azure.BaseURL != "https://test-resource.openai.azure.com" || azure.APIKey != "azure-key-123" {
+		t.Fatalf("azure = %+v", azure)
+	}
+
+	t.Setenv("AWS_BEDROCK_API_KEY", "bedrock-key-456")
+	t.Setenv("BEDROCK_BASE_URL", "https://bedrock-runtime.us-east-1.amazonaws.com")
+	bedrock, err := Resolve(model.ModelIdentity{Provider: "bedrock"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bedrock.Provider != "bedrock" || bedrock.BaseURL != "https://bedrock-runtime.us-east-1.amazonaws.com" || bedrock.APIKey != "bedrock-key-456" {
+		t.Fatalf("bedrock = %+v", bedrock)
+	}
+}

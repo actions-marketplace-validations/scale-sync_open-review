@@ -61,3 +61,27 @@ func TestSelectionLimitsAndPartialCoverage(t *testing.T) {
 		t.Fatalf("size limit: %+v, %v", sized.Coverage, err)
 	}
 }
+
+func TestSelectionExcludesSecretFilesByDefault(t *testing.T) {
+	changes := []diff.Change{
+		{Path: "src/app.go", Patch: "diff --git a/src/app.go b/src/app.go\n+code\n"},
+		{Path: ".env", Patch: "diff --git a/.env b/.env\n+SECRET_KEY=12345\n"},
+		{Path: "certs/server.key", Patch: "diff --git a/certs/server.key b/certs/server.key\n+PRIVATE_KEY\n"},
+		{Path: ".env.example", Patch: "diff --git a/.env.example b/.env.example\n+PUBLIC_VAR=\n"},
+	}
+	req, err := Select(model.Request{Changes: changes}, Selection{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// .env and server.key should be skipped as secret_file; app.go and .env.example should be selected
+	if len(req.Files) != 2 || req.Files[0] != ".env.example" || req.Files[1] != "src/app.go" {
+		t.Fatalf("files: %q", req.Files)
+	}
+	for _, c := range req.Coverage {
+		if c.Path == ".env" || c.Path == "certs/server.key" {
+			if c.State != "skipped" || c.Reason != "secret_file" {
+				t.Fatalf("expected secret_file skip for %s, got %+v", c.Path, c)
+			}
+		}
+	}
+}

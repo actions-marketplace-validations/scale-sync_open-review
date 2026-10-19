@@ -14,6 +14,7 @@ import (
 	"github.com/scale-sync/open-review/review/internal/diff"
 	"github.com/scale-sync/open-review/review/internal/model"
 	sessionstore "github.com/scale-sync/open-review/review/internal/session"
+	"github.com/scale-sync/open-review/review/internal/telemetry"
 )
 
 func TestReviewResumesCompletedGroupsWithoutModelCalls(t *testing.T) {
@@ -113,6 +114,8 @@ func TestModelProvidersAndMalformedOutput(t *testing.T) {
 		{"anthropic", "claude-sonnet", "ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "/v1/messages", `{"content":[{"text":"{\"findings\":[]}"}]}`},
 		{"gemini", "gemini-flash", "GEMINI_API_KEY", "GEMINI_BASE_URL", "/v1beta/models/gemini-flash:generateContent", `{"candidates":[{"content":{"parts":[{"text":"{\"findings\":[]}"}]}}]}`},
 		{"openrouter", "openrouter/free", "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "/chat/completions", `{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`},
+		{"azure", "gpt-4o", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_BASE_URL", "/openai/deployments/gpt-4o/chat/completions", `{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`},
+		{"bedrock", "anthropic.claude-3-5-sonnet", "AWS_BEDROCK_API_KEY", "AWS_BEDROCK_BASE_URL", "/model/anthropic.claude-3-5-sonnet/invoke", `{"content":[{"text":"{\"findings\":[]}"}]}`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.model, func(t *testing.T) {
@@ -479,5 +482,60 @@ func TestReviewAcceptsFencedJSON(t *testing.T) {
 func TestReviewJSONExtractsObjectAfterPreamble(t *testing.T) {
 	if got := reviewJSON("Explanation before output.\n{\"findings\":[]}"); got != `{"findings":[]}` {
 		t.Fatalf("review JSON = %q", got)
+	}
+}
+
+func TestModelRetryOnTransientFailure(t *testing.T) {
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count := attempts.Add(1)
+		if count < 2 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"error":"temporarily unavailable"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`))
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+	answer, err := callModel(context.Background(), model.ModelIdentity{Name: "gpt-4o"}, "diff")
+	if err != nil || answer != `{"findings":[]}` {
+		t.Fatalf("answer = %q, err = %v, attempts = %d", answer, err, attempts.Load())
+	}
+	if attempts.Load() != 2 {
+		t.Fatalf("expected 2 attempts, got %d", attempts.Load())
+	}
+}
+
+func TestModelTelemetryIntegration(t *testing.T) {
+	telemetry.Reset()
+	defer telemetry.Reset()
+	telemetry.SetEnabled(true)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[]}"}}],"usage":{"prompt_tokens":42,"completion_tokens":12}}`))
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL)
+
+	answer, err := callModel(context.Background(), model.ModelIdentity{Name: "gpt-4o"}, "diff")
+	if err != nil || answer != `{"findings":[]}` {
+		t.Fatalf("answer = %q, err = %v", answer, err)
+	}
+
+	spans := telemetry.Spans()
+	if len(spans) == 0 {
+		t.Fatal("expected at least 1 telemetry span")
+	}
+	last := spans[len(spans)-1]
+	if last.Name != "model_call" || last.Status != "ok" {
+		t.Fatalf("span = %+v", last)
+	}
+	if last.Attributes["model.provider"] != "openai" || last.Attributes["tokens.prompt"] != 42 {
+		t.Fatalf("span attributes = %+v", last.Attributes)
 	}
 }

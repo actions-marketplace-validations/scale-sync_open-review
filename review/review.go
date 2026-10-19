@@ -21,9 +21,15 @@ import (
 	"github.com/scale-sync/open-review/review/internal/sarif"
 	"github.com/scale-sync/open-review/review/internal/scan"
 	"github.com/scale-sync/open-review/review/internal/session"
+	"github.com/scale-sync/open-review/review/internal/telemetry"
 	"github.com/scale-sync/open-review/review/internal/verify"
 	"github.com/scale-sync/open-review/review/internal/viewer"
 )
+
+type TelemetrySpan = telemetry.Span
+
+func EnableTelemetry(enabled bool) { telemetry.SetEnabled(enabled) }
+func TelemetrySpans() []telemetry.Span { return telemetry.Spans() }
 
 type Options struct {
 	Repo          string

@@ -90,6 +90,7 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	deep := flags.Bool("deep", false, "run bounded deep verification before review")
 	mcpConfig := flags.String("mcp-config", "", "explicit MCP tool configuration")
 	effort := flags.String("effort", "medium", "review rounds: low, medium, or high")
+	telemetryOpt := flags.Bool("telemetry", false, "opt-in OpenTelemetry traces and latency metrics")
 	maxFiles := flags.Int("max-files", 100, "maximum selected files")
 	maxFileBytes := flags.Int("max-file-bytes", 1<<20, "maximum full patch bytes per file")
 	maxPatchBytes := flags.Int("max-patch-bytes", 38_000, "maximum bytes sent per file")
@@ -98,6 +99,9 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	flags.Var(&exclude, "exclude", "exclude file glob; repeatable")
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
+	}
+	if *telemetryOpt {
+		review.EnableTelemetry(true)
 	}
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %s", strings.Join(flags.Args(), " "))

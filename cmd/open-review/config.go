@@ -57,7 +57,7 @@ func runConfigInput(ctx context.Context, args []string, input io.Reader, output 
 	case "setup", "set":
 		flags := flag.NewFlagSet("config "+args[0], flag.ContinueOnError)
 		flags.SetOutput(io.Discard)
-		provider := flags.String("provider", "", "openai, anthropic, gemini, or openrouter")
+		provider := flags.String("provider", "", "openai, anthropic, gemini, openrouter, azure, or bedrock")
 		name := flags.String("model", "", "model name")
 		baseURL := flags.String("base-url", "", "custom HTTPS endpoint")
 		keyStdin := flags.Bool("api-key-stdin", false, "read API key from standard input")
@@ -70,7 +70,7 @@ func runConfigInput(ctx context.Context, args []string, input io.Reader, output 
 		if args[0] == "setup" && !*keyStdin {
 			scanner := bufio.NewScanner(input)
 			if *provider == "" {
-				fmt.Fprint(output, "Provider (openai/anthropic/gemini/openrouter): ")
+				fmt.Fprint(output, "Provider (openai/anthropic/gemini/openrouter/azure/bedrock): ")
 				if !scanner.Scan() {
 					return errors.New("provider input required")
 				}

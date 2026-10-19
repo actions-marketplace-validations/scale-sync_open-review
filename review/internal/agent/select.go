@@ -9,6 +9,7 @@ import (
 
 	"github.com/scale-sync/open-review/review/internal/diff"
 	"github.com/scale-sync/open-review/review/internal/model"
+	"github.com/scale-sync/open-review/review/internal/privacy"
 )
 
 type Selection struct {
@@ -124,6 +125,9 @@ func defaultReason(name string) string {
 	base := parts[len(parts)-1]
 	if strings.Contains(base, ".generated.") || strings.HasSuffix(base, ".min.js") || strings.HasSuffix(base, ".min.css") || base == "pnpm-lock.yaml" || base == "package-lock.json" || base == "yarn.lock" {
 		return "generated_or_lockfile"
+	}
+	if privacy.IsSecretPath(name) {
+		return "secret_file"
 	}
 	if base == "dockerfile" || base == "makefile" || base == "readme" || base == "license" || base == "changelog" || base == "contributing" || base == ".gitignore" || base == ".env.example" {
 		return ""
