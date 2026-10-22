@@ -1,5 +1,7 @@
 # openreview-sdk
 
+See [`COMMANDS.md`](../COMMANDS.md) for local setup, key rotation, and test commands.
+
 Typed Rust client for contract v2. Install a compatible `open-review` binary on `PATH`, or set `OPEN_REVIEW_BIN` to its path. The crate runs the Go CLI; it does not reimplement the reviewer.
 
 ```rust

@@ -9,6 +9,10 @@ Open-source, agentic code review tool. v1.7.0 runs coordinated fast and deep rev
 
 Requires Go 1.25+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
 
+For the complete source-checkout, CLI, SDK, provider-rotation, testing, and
+release command reference, see [`sdk/COMMANDS.md`](sdk/COMMANDS.md). The full
+release history from `v0.5.0` onward is in [`sdk/RELEASES.md`](sdk/RELEASES.md).
+
 ```bash
 git clone https://github.com/scale-sync/open-review.git
 cd open-review

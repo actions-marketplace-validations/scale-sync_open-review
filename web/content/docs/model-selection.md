@@ -32,3 +32,6 @@ go run ./cmd/open-review review --workspace --provider openai --model gpt-4o --e
 ```
 
 For a comparison of the supported review paths, see [Features](/features). For measurement criteria, see [Benchmarks](/benchmark).
+
+The complete local-clone, SDK, provider-rotation, and release command reference
+is maintained in [`sdk/COMMANDS.md`](https://github.com/scale-sync/open-review/blob/main/sdk/COMMANDS.md).
