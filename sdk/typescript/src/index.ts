@@ -59,11 +59,35 @@ export interface ReviewOptions {
   signal?: AbortSignal;
 }
 
+export interface ProviderConfigOptions {
+  provider: string;
+  model: string;
+  apiKey: string;
+  baseUrl?: string;
+  binary?: string;
+}
+
 export class ReviewError extends Error {
   constructor(message: string, public readonly exitCode?: number) {
     super(message);
     this.name = 'ReviewError';
   }
+}
+
+/** Replace the saved BYOK provider and key without putting the secret in argv. */
+export async function configureProvider(options: ProviderConfigOptions): Promise<void> {
+  const binary = options.binary ?? process.env.OPEN_REVIEW_BIN ?? 'open-review';
+  const args = ['config', 'set', '--provider', options.provider, '--model', options.model, '--api-key-stdin'];
+  if (options.baseUrl) args.push('--base-url', options.baseUrl);
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(binary, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    let stderr = '';
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk: string) => { stderr += chunk; });
+    child.on('error', (error) => reject(new ReviewError(error.message)));
+    child.on('close', (code) => code === 0 ? resolve() : reject(new ReviewError(stderr.trim() || 'open-review config failed', code ?? undefined)));
+    child.stdin.end(`${options.apiKey}\n`);
+  });
 }
 
 export async function review(options: ReviewOptions): Promise<Result> {

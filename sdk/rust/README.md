@@ -11,4 +11,7 @@ Set `OPENAI_API_KEY` (or the selected provider's variable) for CI, or
 `OPEN_REVIEW_API_KEY` for a provider-agnostic BYOK setup. In an interactive
 terminal, the CLI prompts once and stores the key locally with mode `0600`.
 
+Use `configure_provider` with `ProviderConfigOptions` to rotate providers; the
+secret is sent over stdin and never placed in process arguments.
+
 Set `Options::timeout` to terminate a long run. Partial coverage returns a result with `status == "partial"`.

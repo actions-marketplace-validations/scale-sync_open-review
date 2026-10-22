@@ -12,4 +12,11 @@ provider-specific variable) for CI, or `OPEN_REVIEW_API_KEY` for a
 provider-agnostic BYOK setup. In an interactive terminal, the CLI prompts once
 and stores the key locally with mode `0600`.
 
+Rotate providers without editing config files:
+
+```ts
+import { configureProvider } from '@openreview/sdk';
+await configureProvider({ provider: 'anthropic', model: 'claude-sonnet-4-5', apiKey: process.env.ANTHROPIC_API_KEY! });
+```
+
 Pass an `AbortSignal` to cancel. A partial review resolves with `status: 'partial'`; malformed output and failed runs throw `ReviewError`.

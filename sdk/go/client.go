@@ -16,6 +16,10 @@ type Finding = review.Finding
 type CoverageEntry = review.CoverageEntry
 type ModelIdentity = review.ModelIdentity
 type Limits = review.Limits
+type ProviderConfig = review.ProviderConfig
+
+// ConfigureProvider replaces the saved BYOK provider and key.
+func ConfigureProvider(value ProviderConfig) error { return review.SaveProviderConfig(value) }
 
 // Prepare selects reviewable files and resolves repository guidance.
 func Prepare(ctx context.Context, options Options) (Request, error) {

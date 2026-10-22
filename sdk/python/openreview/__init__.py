@@ -60,6 +60,30 @@ class ReviewOptions:
     timeout: float | None = None
 
 
+@dataclass(frozen=True)
+class ProviderConfigOptions:
+    provider: str
+    model: str
+    api_key: str
+    base_url: str | None = None
+    binary: str | Path | None = None
+
+
+def configure_provider(options: ProviderConfigOptions) -> None:
+    """Replace the saved BYOK provider and key without putting the secret in argv."""
+    args = [str(options.binary or os.getenv("OPEN_REVIEW_BIN") or "open-review"),
+            "config", "set", "--provider", options.provider, "--model", options.model,
+            "--api-key-stdin"]
+    if options.base_url:
+        args.extend(("--base-url", options.base_url))
+    try:
+        process = subprocess.run(args, input=options.api_key + "\n", capture_output=True, text=True, check=False)
+    except OSError as error:
+        raise ReviewError(str(error)) from error
+    if process.returncode != 0:
+        raise ReviewError(process.stderr.strip() or "open-review config failed")
+
+
 def review(options: ReviewOptions) -> Result:
     """Run the Go CLI and return its typed contract result.
 

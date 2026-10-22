@@ -1,7 +1,7 @@
 //! Typed subprocess client for the open-review contract v2 CLI.
 
 use serde::Deserialize;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -71,6 +71,27 @@ pub struct Options {
     pub provider: Option<String>,
     pub high_recall: bool,
     pub timeout: Option<Duration>,
+}
+
+pub struct ProviderConfigOptions {
+    pub provider: String,
+    pub model: String,
+    pub api_key: String,
+    pub base_url: Option<String>,
+    pub binary: PathBuf,
+}
+
+pub fn configure_provider(options: &ProviderConfigOptions) -> std::result::Result<(), ReviewError> {
+    let mut command = Command::new(&options.binary);
+    command.args(["config", "set", "--provider", &options.provider, "--model", &options.model, "--api-key-stdin"]);
+    if let Some(base_url) = &options.base_url { command.args(["--base-url", base_url]); }
+    let mut child = command.stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn().map_err(ReviewError::Process)?;
+    child.stdin.take().expect("piped stdin").write_all(format!("{}\n", options.api_key).as_bytes()).map_err(ReviewError::Process)?;
+    let output = child.wait_with_output().map_err(ReviewError::Process)?;
+    if !output.status.success() {
+        return Err(ReviewError::Failed(String::from_utf8_lossy(&output.stderr).trim().to_owned()));
+    }
+    Ok(())
 }
 
 impl Options {
