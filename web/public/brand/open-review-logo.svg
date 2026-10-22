@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 64" role="img" aria-labelledby="title">
+  <title id="title">open-review</title>
+  <rect width="64" height="64" rx="4" fill="#2f5dc7"/>
+  <path d="M38.5 12 22 52" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="square"/>
+  <text x="84" y="42" fill="#172226" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" letter-spacing="-1.8">open-review</text>
+</svg>

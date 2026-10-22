@@ -6,6 +6,7 @@ const navigation = [
   { href: '/benchmark', label: 'Benchmarks' },
   { href: '/quickstart', label: 'Quick start' },
   { href: '/docs', label: 'Docs' },
+  { href: '/releases', label: 'Releases' },
   { href: '/blog', label: 'Journal' },
 ];
 
