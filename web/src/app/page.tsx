@@ -1,6 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
+const assetPrefix = process.env.GITHUB_ACTIONS ? '/open-review' : '';
+
 const capabilities = [
   {
     label: 'Review the right lines',
@@ -48,7 +50,7 @@ export default function Home() {
         </div>
         <div className="hero-visual">
           <Image
-            src="/images/review-workflow-hero.png"
+            src={`${assetPrefix}/images/review-workflow-hero.png`}
             alt="A code review interface on a monitor above a notebook with a flow sketch"
             fill
             priority
@@ -111,7 +113,7 @@ export default function Home() {
       <section className="workflow shell">
         <div className="workflow-image">
           <Image
-            src="/images/review-process.png"
+            src={`${assetPrefix}/images/review-process.png`}
             alt="Notebook flow sketch beside a keyboard and code diff"
             fill
             sizes="(max-width: 900px) 100vw, 47vw"
