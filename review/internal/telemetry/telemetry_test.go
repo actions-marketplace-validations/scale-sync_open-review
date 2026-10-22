@@ -3,6 +3,11 @@ package telemetry
 import (
 	"context"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -19,6 +24,41 @@ func TestTelemetryDisabledByDefault(t *testing.T) {
 		t.Fatal("span should be nil when disabled")
 	}
 	_ = ctx
+}
+
+func TestOTLPExportOmitsPromptAndErrorContent(t *testing.T) {
+	Reset()
+	defer Reset()
+	var mu sync.Mutex
+	requests := map[string][]byte{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		requests[r.URL.Path] = body
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", server.URL)
+	SetEnabled(true)
+	shutdown := Configure(context.Background())
+	_, span := Start(context.Background(), "model_call")
+	span.SetAttribute("model.provider", "openai")
+	span.SetAttribute("tokens.prompt", 5)
+	span.SetAttribute("prompt", "SENSITIVE_PROMPT_MARKER")
+	span.RecordError(errors.New("SENSITIVE_ERROR_MARKER"))
+	span.End()
+	shutdown(context.Background())
+	mu.Lock()
+	defer mu.Unlock()
+	if len(requests["/v1/traces"]) == 0 || len(requests["/v1/metrics"]) == 0 {
+		t.Fatalf("expected trace and metric exports, got paths %v", requests)
+	}
+	for _, body := range requests {
+		if strings.Contains(string(body), "SENSITIVE_") {
+			t.Fatal("telemetry export included prompt or error content")
+		}
+	}
 }
 
 func TestTelemetryEnabledAndContentRedaction(t *testing.T) {
@@ -77,7 +117,7 @@ func TestTelemetryEnabledAndContentRedaction(t *testing.T) {
 	if childRec.TraceID != rec.TraceID {
 		t.Fatalf("child TraceID %s != parent TraceID %s", childRec.TraceID, rec.TraceID)
 	}
-	if childRec.Status != "error" || childRec.Error != "sandbox timeout" {
+	if childRec.Status != "error" || childRec.Error != "operation_failed" {
 		t.Fatalf("child error not captured: %+v", childRec)
 	}
 }

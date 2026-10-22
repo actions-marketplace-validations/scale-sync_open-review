@@ -1,0 +1,24 @@
+{
+  "name": "@openreview/sdk",
+  "version": "1.11.0",
+  "description": "Typed Node client for the open-review Go engine",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "files": ["dist", "README.md", "LICENSE"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node test/smoke.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^7.0.2"
+  }
+}

@@ -13,7 +13,9 @@ import (
 	"github.com/scale-sync/open-review/review/internal/config/rules"
 	"github.com/scale-sync/open-review/review/internal/deep"
 	"github.com/scale-sync/open-review/review/internal/diff"
+	"github.com/scale-sync/open-review/review/internal/feedback"
 	"github.com/scale-sync/open-review/review/internal/gitcmd"
+	"github.com/scale-sync/open-review/review/internal/i18n"
 	"github.com/scale-sync/open-review/review/internal/linter"
 	"github.com/scale-sync/open-review/review/internal/llm"
 	"github.com/scale-sync/open-review/review/internal/mcpclient"
@@ -30,6 +32,10 @@ type TelemetrySpan = telemetry.Span
 
 func EnableTelemetry(enabled bool) { telemetry.SetEnabled(enabled) }
 func TelemetrySpans() []telemetry.Span { return telemetry.Spans() }
+func TelemetryEnabled() bool           { return telemetry.IsEnabled() }
+func ConfigureTelemetry(ctx context.Context) func(context.Context) {
+	return telemetry.Configure(ctx)
+}
 
 type Options struct {
 	Repo          string
@@ -44,9 +50,11 @@ type Options struct {
 	MaxFiles      int
 	MaxFileBytes  int
 	MaxPatchBytes int
+	HighRecall    bool
 }
 type Request = model.Request
 type Result = model.Result
+type Finding = model.Finding
 type CoverageEntry = model.CoverageEntry
 type ModelIdentity = model.ModelIdentity
 type Limits = model.Limits
@@ -55,6 +63,50 @@ type Session = session.Store
 type SessionSummary = session.Summary
 type SessionEvent = session.Event
 type SessionRecord = session.Record
+type Learning = feedback.Learning
+
+func SetLocale(code string)            { i18n.SetLocale(code) }
+func CurrentLocale() string            { return i18n.CurrentLocale() }
+func T(key string, args ...any) string { return i18n.T(key, args...) }
+
+func OpenLearnings(dir, repo string) (*feedback.Store, error) {
+	return feedback.Open(dir, repo)
+}
+func ListLearnings(dir, repo string) ([]feedback.Learning, error) {
+	store, err := feedback.Open(dir, repo)
+	if err != nil {
+		return nil, err
+	}
+	return store.List()
+}
+func AddLearning(dir, repo, trigger, finding, source string, ttlDays int) (feedback.Learning, error) {
+	store, err := feedback.Open(dir, repo)
+	if err != nil {
+		return feedback.Learning{}, err
+	}
+	return store.Add(trigger, finding, source, ttlDays)
+}
+func DeleteLearning(dir, repo, id string) error {
+	store, err := feedback.Open(dir, repo)
+	if err != nil {
+		return err
+	}
+	return store.Delete(id)
+}
+func ExportLearnings(dir, repo string) ([]byte, error) {
+	store, err := feedback.Open(dir, repo)
+	if err != nil {
+		return nil, err
+	}
+	return store.Export()
+}
+func ImportLearnings(dir, repo string, data []byte) (int, error) {
+	store, err := feedback.Open(dir, repo)
+	if err != nil {
+		return 0, err
+	}
+	return store.Import(data)
+}
 
 func OpenSession(dir string, req Request) (*Session, error) { return session.Open(dir, req) }
 func WithSession(ctx context.Context, store *Session) context.Context {
@@ -66,7 +118,32 @@ func ReadSession(dir, id, repo string) (SessionRecord, error) { return session.R
 func DeleteSession(dir, id, repo string) error                { return session.Delete(dir, id, repo) }
 func SessionViewer(dir, repo string) http.Handler             { return viewer.Handler(dir, repo) }
 func SetFindingTriage(dir, id, repo, findingID, state string) (map[string]string, error) {
-	return session.SetTriage(dir, id, repo, findingID, state)
+	triage, err := session.SetTriage(dir, id, repo, findingID, state)
+	if err == nil && (state == "dismissed" || state == "accepted") {
+		// Auto-record durable feedback learning
+		rec, readErr := session.Read(dir, id, repo)
+		if readErr == nil && len(rec.Result) > 0 {
+			var res model.Result
+			if json.Unmarshal(rec.Result, &res) == nil {
+				for _, raw := range res.Findings {
+					var f model.Finding
+					if json.Unmarshal(raw, &f) == nil && f.ID == findingID {
+						trigger := state
+						findingText := f.Title
+						if f.Explanation != "" {
+							findingText += ": " + f.Explanation
+						}
+						if len(findingText) > feedback.MaxLearningChars {
+							findingText = findingText[:feedback.MaxLearningChars]
+						}
+						_, _ = AddLearning("", repo, trigger, findingText, "triage_"+state, 90)
+						break
+					}
+				}
+			}
+		}
+	}
+	return triage, err
 }
 func FormatSARIF(result Result) ([]byte, error) { return sarif.Format(result) }
 
@@ -122,6 +199,7 @@ func Prepare(ctx context.Context, opts Options) (Request, error) {
 }
 
 func selectAndResolve(req Request, opts Options) (Request, error) {
+	req.HighRecall = opts.HighRecall
 	req, err := agent.Select(req, agent.Selection{Include: opts.Include, Exclude: opts.Exclude, MaxFiles: opts.MaxFiles, MaxFileBytes: opts.MaxFileBytes, MaxPatchBytes: opts.MaxPatchBytes})
 	if err != nil {
 		return Request{}, err
@@ -135,10 +213,25 @@ func selectAndResolve(req Request, opts Options) (Request, error) {
 	if err != nil {
 		return Request{}, err
 	}
+	if store, err := feedback.Open("", req.RepoRoot); err == nil {
+		if list, err := store.List(); err == nil && len(list) > 0 {
+			formatted := feedback.FormatForPrompt(list)
+			if formatted != "" {
+				if req.Instructions == "" {
+					req.Instructions = formatted
+				} else {
+					req.Instructions += "\n\n" + formatted
+				}
+			}
+		}
+	}
 	return req, nil
 }
 
 func Run(ctx context.Context, req Request) (Result, error) {
+	if req.HighRecall && req.ReviewEffort == "" {
+		req.ReviewEffort = "high"
+	}
 	if req.ReviewEffort != "" && req.ReviewEffort != "low" && req.ReviewEffort != "medium" && req.ReviewEffort != "high" {
 		return Result{}, fmt.Errorf("unsupported review effort %q", req.ReviewEffort)
 	}

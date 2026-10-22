@@ -45,7 +45,6 @@ func TestGoReviewPreservesFullChanges(t *testing.T) {
 		t.Fatalf("result = %+v, %v", result, err)
 	}
 }
-
 func TestExternalRequestCannotGrantLocalFileReads(t *testing.T) {
 	req, err := PrepareExternal(Request{ContractVersion: 2, Mode: "branch", RepoRoot: "org/repo", WorktreeRoot: t.TempDir()}, 10)
 	if err != nil || req.WorktreeRoot != "" {
@@ -155,5 +154,63 @@ func TestDeepReviewBudgetReturnsPartial(t *testing.T) {
 	result, err := Run(context.Background(), Request{ContractVersion: 2, ReviewKind: "deep", RepoRoot: "org/repo", Files: []string{"main.go"}, Diff: patch, Limits: model.Limits{TotalTokens: 1}})
 	if err != nil || result.Status != "partial" || len(result.Audit) == 0 || result.Audit[0].Status != "partial" {
 		t.Fatalf("result = %+v, err = %v", result, err)
+	}
+}
+
+func TestHighRecallReview(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"findings\":[]}"}}]}`))
+	}))
+	defer server.Close()
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "test-key")
+	t.Setenv("OPENAI_BASE_URL", server.URL+"/v1")
+	t.Setenv("MAIN_MODEL", "gpt-4o")
+
+	patch := "diff --git a/main.go b/main.go\n--- a/main.go\n+++ b/main.go\n@@ -0,0 +1 @@\n+bad\n"
+	result, err := Run(context.Background(), Request{
+		ContractVersion: 2,
+		Mode:            "workspace",
+		RepoRoot:        t.TempDir(),
+		Files:           []string{"main.go"},
+		Diff:            patch,
+		HighRecall:      true,
+		Changes:         []diff.Change{diff.Untracked("main.go", patch)},
+		Coverage:        []CoverageEntry{{Path: "main.go", State: "selected"}},
+	})
+	if err != nil || result.Status != "complete" {
+		t.Fatalf("Run failed: %v, result: %+v", err, result)
+	}
+	if !strings.Contains(string(result.Summary), `"highRecall":true`) {
+		t.Errorf("expected highRecall in summary, got %s", string(result.Summary))
+	}
+	if !strings.Contains(string(result.Trace), `"highRecall":true`) {
+		t.Errorf("expected highRecall in trace, got %s", string(result.Trace))
+	}
+}
+
+func TestLearningsIntegration(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("OPEN_REVIEW_HOME", home)
+	repo := t.TempDir()
+
+	// Add learning
+	_, err := AddLearning("", repo, "null check", "always check pointer before dereference", "feedback", 30)
+	if err != nil {
+		t.Fatalf("AddLearning failed: %v", err)
+	}
+
+	learnings, err := ListLearnings("", repo)
+	if err != nil || len(learnings) != 1 {
+		t.Fatalf("expected 1 learning, got %d (err: %v)", len(learnings), err)
+	}
+
+	opts := Options{Repo: repo, Mode: "workspace"}
+	req, err := selectAndResolve(Request{ContractVersion: 2, RepoRoot: repo}, opts)
+	if err != nil {
+		t.Fatalf("selectAndResolve failed: %v", err)
+	}
+	if !strings.Contains(req.Instructions, "Team Learnings") || !strings.Contains(req.Instructions, "null check") {
+		t.Errorf("expected learnings in instructions, got %q", req.Instructions)
 	}
 }

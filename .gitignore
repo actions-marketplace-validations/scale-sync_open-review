@@ -34,6 +34,12 @@ Thumbs.db
 .cursor/rules/openmemory.mdc
 CLAUDE.md
 /coverage/
+sdk/python/build/
+sdk/python/dist/
+sdk/python/*.egg-info/
+sdk/python/openreview/__pycache__/
+sdk/python/tests/__pycache__/
+sdk/rust/target/
 
 .pnpm-store/
 

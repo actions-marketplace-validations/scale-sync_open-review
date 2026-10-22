@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/scale-sync/open-review/review"
 )
@@ -62,8 +63,11 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if len(args) > 0 && args[0] == "delegate" {
 		return runDelegate(ctx, args[1:], output)
 	}
+	if len(args) > 0 && args[0] == "learnings" {
+		return runLearnings(args[1:], output)
+	}
 	if len(args) == 0 || args[0] != "review" {
-		return errors.New("usage: open-review review|delegate|review-json|sarif|sessions|rules|config|completion|mcp|acp")
+		return errors.New("usage: open-review review|delegate|review-json|sarif|sessions|rules|config|completion|mcp|acp|learnings")
 	}
 	flags := flag.NewFlagSet("review", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -88,6 +92,8 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	groupSeconds := flags.Int("group-seconds", 0, "review deadline")
 	preview := flags.Bool("preview", false, "show selected and skipped files without calling a model")
 	deep := flags.Bool("deep", false, "run bounded deep verification before review")
+	highRecall := flags.Bool("high-recall", false, "run broader review rounds and context for high-risk changes")
+	locale := flags.String("locale", "", "language locale: en, es, ja, zh, or de")
 	mcpConfig := flags.String("mcp-config", "", "explicit MCP tool configuration")
 	effort := flags.String("effort", "medium", "review rounds: low, medium, or high")
 	telemetryOpt := flags.Bool("telemetry", false, "opt-in OpenTelemetry traces and latency metrics")
@@ -100,8 +106,19 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
+	if *locale != "" {
+		review.SetLocale(*locale)
+	}
 	if *telemetryOpt {
 		review.EnableTelemetry(true)
+	}
+	if review.TelemetryEnabled() {
+		shutdown := review.ConfigureTelemetry(ctx)
+		defer func() {
+			flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			shutdown(flushCtx)
+		}()
 	}
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected arguments: %s", strings.Join(flags.Args(), " "))
@@ -135,14 +152,18 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	if *workspace && mode != "workspace" || *commit != "" && (*base != "" || *head != "") || *scanPath != "" && (*commit != "" || *base != "" || *head != "" || *workspace) {
 		return errors.New("choose only one review mode")
 	}
-	req, err := review.Prepare(ctx, review.Options{Repo: *repo, Instructions: *instruction, Mode: mode, Base: *base, Head: *head, Commit: *commit, ScanPath: *scanPath, Include: include, Exclude: exclude, MaxFiles: *maxFiles, MaxFileBytes: *maxFileBytes, MaxPatchBytes: *maxPatchBytes})
+	req, err := review.Prepare(ctx, review.Options{Repo: *repo, Instructions: *instruction, Mode: mode, Base: *base, Head: *head, Commit: *commit, ScanPath: *scanPath, Include: include, Exclude: exclude, MaxFiles: *maxFiles, MaxFileBytes: *maxFileBytes, MaxPatchBytes: *maxPatchBytes, HighRecall: *highRecall})
 	if err != nil {
 		return err
 	}
 	if *deep {
 		req.ReviewKind = "deep"
 	}
+	req.HighRecall = *highRecall
 	req.ReviewEffort = *effort
+	if *highRecall && *effort == "medium" {
+		req.ReviewEffort = "high"
+	}
 	req.Model = review.ModelIdentity{Provider: *provider, Name: *modelName, BaseURL: *baseURL}
 	req.Limits = review.Limits{PromptTokens: *promptTokens, OutputTokens: *outputTokens, TotalTokens: *totalTokens, RequestSeconds: *requestSeconds, GroupSeconds: *groupSeconds}
 	var rendered bytes.Buffer

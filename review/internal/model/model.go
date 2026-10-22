@@ -37,6 +37,7 @@ type Request struct {
 	RuleDiagnostics []RuleDiagnostic `json:"ruleDiagnostics,omitempty"`
 	ReviewKind      string           `json:"reviewKind,omitempty"`
 	ReviewEffort    string           `json:"reviewEffort,omitempty"`
+	HighRecall      bool             `json:"highRecall,omitempty"`
 	WorktreeRoot    string           `json:"worktreeRoot,omitempty"`
 	Model           ModelIdentity    `json:"model,omitempty"`
 	Limits          Limits           `json:"limits,omitempty"`

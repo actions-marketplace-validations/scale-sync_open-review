@@ -1,7 +1,7 @@
 <idea-plugin>
   <id>dev.openreview.jetbrains</id>
   <name>open-review</name>
-  <version>1.9.0</version>
+  <version>1.10.0</version>
   <vendor>open-review</vendor>
   <description>Review local changes with the open-review Go CLI.</description>
   <idea-version since-build="262"/>

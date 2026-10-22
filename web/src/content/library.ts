@@ -40,6 +40,27 @@ export const documents = [
     summary: 'Provider support, effort levels, and review budgets.',
   },
   {
+    slug: 'high-recall',
+    title: 'High-recall mode',
+    group: 'Guides',
+    source: 'web/content/docs/high-recall.md',
+    summary: 'Extended exploration rounds and deep context for high-risk changes.',
+  },
+  {
+    slug: 'durable-learnings',
+    title: 'Durable learnings',
+    group: 'Guides',
+    source: 'web/content/docs/durable-learnings.md',
+    summary: 'Repository-scoped feedback, triage memory, and prompt safety.',
+  },
+  {
+    slug: 'localization',
+    title: 'Localization',
+    group: 'Guides',
+    source: 'web/content/docs/localization.md',
+    summary: 'Multilingual CLI and guidance with invariant machine interfaces.',
+  },
+  {
     slug: 'benchmark-method',
     title: 'Benchmark method',
     group: 'Guides',
@@ -50,7 +71,7 @@ export const documents = [
     slug: 'release-notes',
     title: 'Release notes',
     group: 'Reference',
-    source: '_plan_docs/releases/v1.3.0.md',
+    source: '_plan_docs/releases/v1.9.0.md',
     summary: 'What shipped in the latest release.',
   },
   {
@@ -94,8 +115,30 @@ export function readProjectContent(source: string): string {
         path.join(process.cwd(), 'content', 'docs', 'model-selection.md'),
         'utf8',
       );
+    case 'web/content/docs/high-recall.md':
+      return readFileSync(path.join(process.cwd(), 'content', 'docs', 'high-recall.md'), 'utf8');
+    case 'web/content/docs/durable-learnings.md':
+      return readFileSync(
+        path.join(process.cwd(), 'content', 'docs', 'durable-learnings.md'),
+        'utf8',
+      );
+    case 'web/content/docs/localization.md':
+      return readFileSync(
+        path.join(process.cwd(), 'content', 'docs', 'localization.md'),
+        'utf8',
+      );
     case 'benchmarks/README.md':
       return readFileSync(path.join(process.cwd(), '..', 'benchmarks', 'README.md'), 'utf8');
+    case '_plan_docs/releases/v1.10.0.md':
+      return readFileSync(
+        path.join(process.cwd(), '..', '_plan_docs', 'releases', 'v1.10.0.md'),
+        'utf8',
+      );
+    case '_plan_docs/releases/v1.9.0.md':
+      return readFileSync(
+        path.join(process.cwd(), '..', '_plan_docs', 'releases', 'v1.9.0.md'),
+        'utf8',
+      );
     case '_plan_docs/releases/v1.3.0.md':
       return readFileSync(
         path.join(process.cwd(), '..', '_plan_docs', 'releases', 'v1.3.0.md'),

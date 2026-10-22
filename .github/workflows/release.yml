@@ -46,7 +46,14 @@ jobs:
       - run: bash integrations/ci/test.sh
       - run: go vet ./...
 
+      - name: Build checksummed binary assets
+        if: startsWith(github.ref_name, 'v1.12.')
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: bash integrations/release/build.sh "$RELEASE_VERSION"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           body_path: _plan_docs/releases/${{ github.ref_name }}.md
+          files: dist/release/*

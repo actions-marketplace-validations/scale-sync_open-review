@@ -4,10 +4,21 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	otelmetric "go.opentelemetry.io/otel/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Span struct {
@@ -20,6 +31,8 @@ type Span struct {
 	Status     string         `json:"status"` // "ok" or "error"
 	Error      string         `json:"error,omitempty"`
 	Attributes map[string]any `json:"attributes"`
+	otelSpan   trace.Span
+	ctx        context.Context
 }
 
 type contextKey struct{}
@@ -69,6 +82,30 @@ func Spans() []Span {
 	return out
 }
 
+// Configure enables OTLP/HTTP export when telemetry is opted in and an OTLP
+// endpoint is configured. Export failures never change review results.
+func Configure(ctx context.Context) func(context.Context) {
+	if !IsEnabled() || (os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") == "" && os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") == "" && os.Getenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT") == "") {
+		return func(context.Context) {}
+	}
+	traceExporter, err := otlptracehttp.New(ctx)
+	if err != nil {
+		return func(context.Context) {}
+	}
+	metricExporter, err := otlpmetrichttp.New(ctx)
+	if err != nil {
+		_ = traceExporter.Shutdown(ctx)
+		return func(context.Context) {}
+	}
+	traces := sdktrace.NewTracerProvider(sdktrace.WithBatcher(traceExporter))
+	metrics := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)))
+	otel.SetTracerProvider(traces)
+	otel.SetMeterProvider(metrics)
+	return func(shutdownCtx context.Context) {
+		_ = errors.Join(metrics.Shutdown(shutdownCtx), traces.Shutdown(shutdownCtx))
+	}
+}
+
 func randomHex(bytesLen int) string {
 	b := make([]byte, bytesLen)
 	_, _ = rand.Read(b)
@@ -87,6 +124,7 @@ func Start(ctx context.Context, name string) (context.Context, *Span) {
 	} else {
 		traceID = randomHex(16)
 	}
+	otelCtx, otelSpan := otel.Tracer("open-review").Start(ctx, name)
 	span := &Span{
 		TraceID:    traceID,
 		SpanID:     randomHex(8),
@@ -94,8 +132,10 @@ func Start(ctx context.Context, name string) (context.Context, *Span) {
 		StartTime:  time.Now(),
 		Status:     "ok",
 		Attributes: make(map[string]any),
+		otelSpan:   otelSpan,
+		ctx:        otelCtx,
 	}
-	return context.WithValue(ctx, contextKey{}, span), span
+	return context.WithValue(otelCtx, contextKey{}, span), span
 }
 
 var blockedSubstrings = []string{
@@ -131,6 +171,19 @@ func (s *Span) SetAttribute(key string, val any) {
 	if isBlockedKey(key) {
 		return // Policy: Omit source, diff, prompt, and secret content
 	}
+	switch key {
+	case "model.provider", "model.name", "tool.name":
+		value, ok := val.(string)
+		if !ok || len(value) > 120 || strings.ContainsAny(value, " \r\n\t@") {
+			return
+		}
+	case "tokens.prompt", "tokens.output":
+		if _, ok := val.(int); !ok {
+			return
+		}
+	default:
+		return
+	}
 	s.Attributes[key] = val
 }
 
@@ -140,7 +193,7 @@ func (s *Span) RecordError(err error) {
 		return
 	}
 	s.Status = "error"
-	s.Error = err.Error()
+	s.Error = "operation_failed"
 }
 
 // End completes the span and records it into the collector.
@@ -150,6 +203,31 @@ func (s *Span) End() {
 	}
 	s.EndTime = time.Now()
 	s.DurationMs = s.EndTime.Sub(s.StartTime).Milliseconds()
+	if s.otelSpan != nil {
+		for key, val := range s.Attributes {
+			switch typed := val.(type) {
+			case string:
+				s.otelSpan.SetAttributes(attribute.String(key, typed))
+			case int:
+				s.otelSpan.SetAttributes(attribute.Int(key, typed))
+			}
+		}
+		if s.Status == "error" {
+			s.otelSpan.SetStatus(codes.Error, "operation_failed")
+		}
+		s.otelSpan.End()
+	}
+	meter := otel.Meter("open-review")
+	if duration, err := meter.Int64Histogram("open_review.operation.duration", otelmetric.WithUnit("ms")); err == nil {
+		duration.Record(s.ctx, s.DurationMs, otelmetric.WithAttributes(attribute.String("operation", s.Name)))
+	}
+	if tokens, err := meter.Int64Counter("open_review.model.tokens"); err == nil {
+		for _, part := range []string{"prompt", "output"} {
+			if count, ok := s.Attributes["tokens."+part].(int); ok {
+				tokens.Add(s.ctx, int64(count), otelmetric.WithAttributes(attribute.String("kind", part)))
+			}
+		}
+	}
 
 	mu.Lock()
 	defer mu.Unlock()
