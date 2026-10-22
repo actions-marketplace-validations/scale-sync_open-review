@@ -161,4 +161,4 @@ git tag --list 'v*' --sort=-version:refname
 ```
 
 Release notes and the complete product history are in
-[RELEASES.md](RELEASES.md).
+[`RELEASES.md`](../RELEASES.md).

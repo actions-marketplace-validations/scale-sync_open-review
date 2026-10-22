@@ -1,17 +1,22 @@
-# open-review
+# OpenReview
 
 [![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Open-source, agentic code review tool. v1.7.0 runs coordinated fast and deep reviews in Go for local Git changes, whole files, and GitHub pull requests, with bounded repository reads, review rounds, per-file rules, precise findings, resumable local sessions, SARIF output, provider setup, and script-friendly results. TypeScript 7 handles GitHub events, review state, and conversation. The Go CLI also offers opt-in MCP tools and an experimental ACP editor adapter.
+Open-source, agentic code review for local Git changes, whole files, and GitHub
+pull requests. OpenReview combines bounded repository context, configurable
+review depth, precise findings, resumable sessions, SARIF output, provider
+choice, and SDK access behind one Go review engine.
 
-## v1.7.0 from source
+**Latest release: `v1.12.0`** · Rust SDK · cross-platform binaries · checksummed distribution
+
+## Start from source
 
 Requires Go 1.25+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
 
 For the complete source-checkout, CLI, SDK, provider-rotation, testing, and
 release command reference, see [`sdk/COMMANDS.md`](sdk/COMMANDS.md). The full
-release history from `v0.5.0` onward is in [`sdk/RELEASES.md`](sdk/RELEASES.md).
+release history from `v0.5.0` onward is in [`RELEASES.md`](RELEASES.md).
 
 ```bash
 git clone https://github.com/scale-sync/open-review.git
@@ -20,25 +25,13 @@ pnpm install --frozen-lockfile
 pnpm build
 go run ./cmd/open-review review --workspace
 go run ./cmd/open-review review --workspace --preview
-go run ./cmd/open-review rules check --file review/review.go
-go run ./cmd/open-review review --workspace --deep
-go run ./cmd/open-review review --workspace --effort high
-go run ./cmd/open-review review --workspace --include '**/*.go' --exclude 'vendor/**'
-go run ./cmd/open-review review --base main --head feature-branch
-go run ./cmd/open-review review --commit HEAD --output json
 go run ./cmd/open-review config setup
-go run ./cmd/open-review config test
-go run ./cmd/open-review review --workspace --model gpt-4o --total-tokens 10000 --output json --output-file review.json --quiet
-go run ./cmd/open-review review --base main --head feature-branch --session-dir /tmp/open-review-sessions
-go run ./cmd/open-review review --scan src --preview --output json
-go run ./cmd/open-review review --commit HEAD --output sarif --output-file review.sarif
-go run ./cmd/open-review sessions list --dir /tmp/open-review-sessions
-go run ./cmd/open-review sessions serve --dir /tmp/open-review-sessions
-go run ./cmd/open-review mcp serve --repo .
-go run ./cmd/open-review acp serve --repo .
 ```
 
-Use `--repo PATH` to inspect another checkout. See [local review details](review/README.md), [CI examples](integrations/ci/README.md), and [v1.7.0 release notes](_plan_docs/releases/v1.7.0.md).
+Use `--repo PATH` to inspect another checkout. For all CLI, SDK, provider
+rotation, testing, and release commands, see [`sdk/COMMANDS.md`](sdk/COMMANDS.md).
+See [local review details](review/README.md), [CI examples](integrations/ci/README.md),
+and the [release history](RELEASES.md).
 
 ## Current capabilities
 
@@ -70,7 +63,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: scale-sync/open-review/action@v1.7.0
+      - uses: scale-sync/open-review/action@v1.12.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
