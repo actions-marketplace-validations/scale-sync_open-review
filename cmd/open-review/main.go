@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -155,6 +156,11 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 	req, err := review.Prepare(ctx, review.Options{Repo: *repo, Instructions: *instruction, Mode: mode, Base: *base, Head: *head, Commit: *commit, ScanPath: *scanPath, Include: include, Exclude: exclude, MaxFiles: *maxFiles, MaxFileBytes: *maxFileBytes, MaxPatchBytes: *maxPatchBytes, HighRecall: *highRecall})
 	if err != nil {
 		return err
+	}
+	if !*preview && len(req.Files) > 0 {
+		if err := ensureAPIKey(*provider, *modelName, *baseURL); err != nil {
+			return err
+		}
 	}
 	if *deep {
 		req.ReviewKind = "deep"
@@ -308,6 +314,65 @@ func run(ctx context.Context, args []string, output io.Writer) error {
 		return errPartial
 	}
 	return nil
+}
+
+func ensureAPIKey(providerName, modelName, baseURL string) error {
+	identity := review.ModelIdentity{Provider: providerName, Name: modelName, BaseURL: baseURL}
+	_, resolveErr := review.ResolveProviderConfig(identity)
+	if resolveErr == nil {
+		return nil
+	} else if !strings.Contains(resolveErr.Error(), "API key is required") {
+		return resolveErr
+	}
+	if !isTerminal(os.Stdin) || !isTerminal(os.Stderr) {
+		return fmt.Errorf("%w; set the provider-specific key or OPEN_REVIEW_API_KEY for non-interactive use", resolveErr)
+	}
+	provider := providerName
+	if provider == "" {
+		switch {
+		case strings.HasPrefix(modelName, "claude-"):
+			provider = "anthropic"
+		case strings.HasPrefix(modelName, "gemini-"):
+			provider = "gemini"
+		case strings.HasPrefix(modelName, "openrouter/"):
+			provider = "openrouter"
+		default:
+			provider = "openai"
+		}
+	}
+	fmt.Fprintf(os.Stderr, "No %s API key is configured. Enter it once to save it locally (%s): ", provider, "0600")
+	secret, readErr := readSecret()
+	fmt.Fprintln(os.Stderr)
+	if readErr != nil {
+		return fmt.Errorf("read API key: %w", readErr)
+	}
+	key := strings.TrimSpace(string(secret))
+	if key == "" {
+		return errors.New("API key cannot be empty")
+	}
+	if err := review.SaveProviderConfig(review.ProviderConfig{Provider: provider, Model: modelName, BaseURL: baseURL, APIKey: key}); err != nil {
+		return fmt.Errorf("save provider config: %w", err)
+	}
+	path, _ := review.ProviderConfigPath()
+	fmt.Fprintf(os.Stderr, "Saved API key to %s\n", path)
+	return nil
+}
+
+func isTerminal(file *os.File) bool {
+	info, err := file.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
+func readSecret() ([]byte, error) {
+	// Keep the key out of terminal echo on Unix-like systems. If stty is not
+	// available, fall back to normal line input rather than blocking setup.
+	quiet := exec.Command("stty", "-echo").Run() == nil
+	if quiet {
+		defer exec.Command("stty", "echo").Run()
+	}
+	var line string
+	_, err := fmt.Fscanln(os.Stdin, &line)
+	return []byte(line), err
 }
 
 func runJSON(ctx context.Context, args []string, input io.Reader, output io.Writer) error {

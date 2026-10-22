@@ -168,6 +168,12 @@ Copy `.env.example` to `.env` and set your API key:
 cp .env.example .env
 ```
 
+For an interactive local run, `open-review review` prompts once for the
+selected provider's API key when no key is configured. Input is hidden and the
+key is stored in `~/.config/open-review/config.json` with mode `0600`. CI and
+SDK subprocesses should set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
+`GEMINI_API_KEY`, or the provider-agnostic `OPEN_REVIEW_API_KEY` instead.
+
 Key settings:
 
 | Variable              | Default       | Description                                              |
@@ -175,6 +181,7 @@ Key settings:
 | `OPENAI_API_KEY`      | —             | OpenAI API key                                           |
 | `ANTHROPIC_API_KEY`   | —             | Anthropic API key                                        |
 | `GEMINI_API_KEY`      | —             | Google Gemini API key                                    |
+| `OPEN_REVIEW_API_KEY` | —             | BYOK key for the selected provider (useful for SDKs/CI) |
 | `MAIN_MODEL`          | `gpt-4o`      | Primary model for review and chat                        |
 | `SUB_MODEL`           | `gpt-4o-mini` | Secondary model for suggestions                          |
 | `MAX_FILES`           | `100`         | Max files per review                                     |

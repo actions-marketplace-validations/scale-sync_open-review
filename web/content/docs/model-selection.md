@@ -2,6 +2,8 @@
 
 open-review supports OpenAI, Anthropic, Gemini, and OpenAI-compatible endpoints. A nonempty review needs the API key for its selected provider. An empty change set returns without a model call.
 
+When `open-review review` runs in a terminal without a configured key, it prompts once with hidden input and stores the key at `~/.config/open-review/config.json` (`0600`). For SDKs and CI, provide the selected provider variable or the provider-agnostic `OPEN_REVIEW_API_KEY`.
+
 ## Configure a provider
 
 ```bash

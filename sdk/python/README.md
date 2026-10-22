@@ -8,4 +8,8 @@ from openreview import ReviewOptions, review
 result = review(ReviewOptions(repo=".", mode="workspace"))
 ```
 
+Set `OPENAI_API_KEY` (or the selected provider's variable) for CI, or
+`OPEN_REVIEW_API_KEY` for a provider-agnostic BYOK setup. In an interactive
+terminal, the CLI prompts once and stores the key locally with mode `0600`.
+
 Pass `timeout` to limit the subprocess. Partial coverage returns `status="partial"`; malformed output and failed runs raise `ReviewError`.

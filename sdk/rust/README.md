@@ -7,4 +7,8 @@ use openreview_sdk::{review, Mode, Options};
 let result = review(&Options::new(".", Mode::Workspace))?;
 ```
 
+Set `OPENAI_API_KEY` (or the selected provider's variable) for CI, or
+`OPEN_REVIEW_API_KEY` for a provider-agnostic BYOK setup. In an interactive
+terminal, the CLI prompts once and stores the key locally with mode `0600`.
+
 Set `Options::timeout` to terminate a long run. Partial coverage returns a result with `status == "partial"`.

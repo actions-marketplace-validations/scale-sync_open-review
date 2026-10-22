@@ -175,7 +175,9 @@ func Resolve(override model.ModelIdentity) (Provider, error) {
 	}
 	resolved := Provider{Provider: provider, Model: name, BaseURL: first(override.BaseURL, resolvedBase, defaultBaseURL)}
 
-	resolvedKey := os.Getenv(keyEnv)
+	// OPEN_REVIEW_API_KEY is the provider-agnostic BYOK escape hatch. Provider-
+	// specific variables still win when explicitly set for existing workflows.
+	resolvedKey := first(os.Getenv(keyEnv), os.Getenv("OPEN_REVIEW_API_KEY"))
 	if provider == "azure" && resolvedKey == "" {
 		resolvedKey = os.Getenv("AZURE_API_KEY")
 	}

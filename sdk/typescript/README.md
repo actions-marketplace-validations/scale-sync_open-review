@@ -7,4 +7,9 @@ import { review } from '@openreview/sdk';
 const result = await review({ repo: '.', mode: 'workspace' });
 ```
 
+The child CLI uses the caller's key. Set `OPENAI_API_KEY` (or another
+provider-specific variable) for CI, or `OPEN_REVIEW_API_KEY` for a
+provider-agnostic BYOK setup. In an interactive terminal, the CLI prompts once
+and stores the key locally with mode `0600`.
+
 Pass an `AbortSignal` to cancel. A partial review resolves with `status: 'partial'`; malformed output and failed runs throw `ReviewError`.

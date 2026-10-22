@@ -41,6 +41,16 @@ func TestProviderConfigPrivateAndOverride(t *testing.T) {
 	}
 }
 
+func TestProviderConfigAcceptsProviderAgnosticBYOKKey(t *testing.T) {
+	t.Setenv("OPEN_REVIEW_HOME", t.TempDir())
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("OPEN_REVIEW_API_KEY", "byok-test-key")
+	resolved, err := Resolve(model.ModelIdentity{Provider: "openai", Name: "gpt-4o"})
+	if err != nil || resolved.APIKey != "byok-test-key" {
+		t.Fatalf("provider-agnostic key = %+v, %v", resolved, err)
+	}
+}
+
 func TestProviderConfigRejectsMalformedAndUnsafeFile(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("OPEN_REVIEW_HOME", home)
