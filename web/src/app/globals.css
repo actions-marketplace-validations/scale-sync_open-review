@@ -1036,7 +1036,7 @@ p {
 }
 .markdown-article blockquote {
   padding-left: 18px;
-  border-left: 3px solid var(--blue);
+  border-left: 1px solid color-mix(in srgb, var(--blue) 55%, var(--line));
   color: var(--muted);
 }
 
