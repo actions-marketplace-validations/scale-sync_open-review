@@ -2,17 +2,22 @@
 
 [![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm](https://img.shields.io/npm/v/%40scalesync%2Fopen-review?label=npm)](https://www.npmjs.com/package/@scalesync/open-review)
+[![Go module](https://img.shields.io/github/go-mod/go-version/scale-sync/open-review?label=Go%20module)](https://pkg.go.dev/github.com/scale-sync/open-review)
+[![PyPI](https://img.shields.io/pypi/v/openreview-sdk?label=PyPI)](https://pypi.org/project/openreview-sdk/)
+[![crates.io](https://img.shields.io/crates/v/openreview-sdk?label=crates.io)](https://crates.io/crates/openreview-sdk)
+[![GitHub downloads](https://img.shields.io/github/downloads/scale-sync/open-review/total?label=GitHub%20downloads)](https://github.com/scale-sync/open-review/releases)
 
 Open-source, agentic code review for local Git changes, whole files, and GitHub
 pull requests. OpenReview combines bounded repository context, configurable
 review depth, precise findings, resumable sessions, SARIF output, provider
 choice, and SDK access behind one Go review engine.
 
-**Latest release: `v1.12.0`** · Rust SDK · cross-platform binaries · checksummed distribution
+**Latest release: `v1.12.3`** · SDK registries · GitHub Marketplace action · cross-platform binaries
 
 ## Start from source
 
-Requires Go 1.25+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews. No package registry release is available yet.
+Requires Go 1.25+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews.
 
 For the complete source-checkout, CLI, SDK, provider-rotation, testing, and
 release command reference, see [`sdk/COMMANDS.md`](sdk/COMMANDS.md). The full
