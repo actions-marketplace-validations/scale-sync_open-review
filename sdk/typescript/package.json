@@ -4,7 +4,7 @@
   "description": "Typed Node client for the open-review Go engine",
   "license": "MIT",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": { "node": ">=24" },
   "files": ["dist", "README.md", "LICENSE"],
   "exports": {
     ".": {

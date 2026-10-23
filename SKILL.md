@@ -6,7 +6,7 @@ OpenReview is an open-source, agentic code review tool. It analyzes GitHub Pull 
 
 ## Prerequisites
 
-- Node.js ≥ 20
+- Node.js ≥ 24
 - One of: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY` set in environment
 - `GITHUB_TOKEN` or `GITHUB_PAT` available for GitHub API access
 

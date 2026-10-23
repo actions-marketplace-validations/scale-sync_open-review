@@ -271,7 +271,7 @@
 | **Build tool**                  | tsdown                                                           | Latest (replaces tsup, which is unmaintained)                 |
 | **Testing framework**           | Vitest                                                           | 3.x (replaces Jest — native ESM, Vite-powered, faster)        |
 | **Linter / Formatter**          | ESLint 10 + Prettier 3.8                                         | 10.0.3 / 3.8.1 (ESLint 10: flat config only, no .eslintrc)    |
-| **CLI framework**               | commander                                                        | 14.0.3 (requires Node 20+)                                    |
+| **CLI framework**               | commander                                                        | 14.0.3 (requires Node 24+)                                    |
 | **Env loader**                  | dotenv                                                           | 17.3.1                                                        |
 | **Sandbox execution (MVP)**     | Deno                                                             | 2.7.2                                                         |
 | **Sandbox execution (Phase 2)** | Docker                                                           | —                                                             |

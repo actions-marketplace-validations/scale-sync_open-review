@@ -29,7 +29,7 @@ The shared `open-review` agent skill is packaged for [Codex/ChatGPT](.codex-plug
 
 ## Start from source
 
-Requires Go 1.25+, Node.js 20+, pnpm, Git, and a supported model API key for nonempty reviews.
+Requires Go 1.25+, Node.js 24+, pnpm, Git, and a supported model API key for nonempty reviews.
 
 For the complete source-checkout, CLI, SDK, provider-rotation, testing, and
 release command reference, see [`sdk/COMMANDS.md`](sdk/COMMANDS.md). The full
@@ -265,7 +265,7 @@ Files at subdirectory level are scoped to code in that subtree. Go resolves buil
 | Layer           | Technology                    |
 | --------------- | ----------------------------- |
 | Review engine   | Go 1.23+                      |
-| GitHub and chat | TypeScript 7 / Node.js        |
+| GitHub and chat | TypeScript 7 / Node.js 24 LTS |
 | LLM providers   | OpenAI, Anthropic, Google     |
 | Package manager | pnpm                          |
 | Build tool      | tsdown                        |
@@ -278,7 +278,7 @@ Files at subdirectory level are scoped to code in that subtree. Go resolves buil
 ## Development
 
 ```bash
-# Prerequisites: Node.js ≥ 20, pnpm, Deno ≥ 2.7 (optional, for RLM sandbox)
+# Prerequisites: Node.js ≥ 24, pnpm, Deno ≥ 2.7 (optional, for RLM sandbox)
 git clone https://github.com/scale-sync/open-review.git
 cd open-review
 pnpm install

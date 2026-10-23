@@ -37,7 +37,7 @@ Give every developer — regardless of team size or budget — access to the sam
 | Layer                      | Technology                                                       | Version                      | Rationale                                                                                                     |
 | -------------------------- | ---------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | **Core language**          | TypeScript / Node.js                                             | TS 5.9, Node 24 LTS          | Single language across core, CLI, and Action. TS 6.0 RC available; TS 7 (Go rewrite, ~8x faster) in preview   |
-| **Runtime**                | Node.js LTS                                                      | 24.14.0                      | Active LTS. Node 22/20 also supported. Starting Oct 2026, every release becomes LTS                           |
+| **Runtime**                | Node.js LTS                                                      | 24.22.1                      | Active LTS baseline for local development, CI, releases, and SDK consumers.                                  |
 | **Package manager**        | pnpm                                                             | 10.x                         | Replaces Yarn Classic v1 (frozen/unmaintained since 2020). Fast, disk-efficient, strict dependency resolution |
 | **LLM orchestration**      | LangGraph.js                                                     | 1.2.2 (@langchain/langgraph) | GA since 1.0. Type-safe streaming, automatic output coercion. Stable API until 2.0                            |
 | **LLM providers**          | @langchain/openai, @langchain/anthropic, @langchain/google-genai | 1.2.13, 1.3.23, 2.1.25       | google-genai v2 uses new @google/genai SDK (REST-only, json_schema default)                                   |
@@ -48,7 +48,7 @@ Give every developer — regardless of team size or budget — access to the sam
 | **Testing**                | Vitest                                                           | 3.x                          | Replaces Jest. Native ESM support, Vite-powered, faster execution. Jest 30 ESM still experimental             |
 | **Linter / Formatter**     | ESLint 10 + Prettier 3.8                                         | 10.0.3 / 3.8.1               | ESLint 10: flat config only (no .eslintrc), requires Node ≥ 20.19.0                                           |
 | **Sandbox execution**      | Deno (MVP) → Docker (Phase 2)                                    | 2.7.2                        | Temporal API stabilized, V8 14.5, improved Node.js compat                                                     |
-| **CLI framework**          | commander                                                        | 14.0.3                       | Requires Node.js v20+. v15 planned May 2026                                                                   |
+| **CLI framework**          | commander                                                        | 14.0.3                       | Requires Node.js v24+.                                                                                         |
 | **Env loader**             | dotenv                                                           | 17.3.1                       | v17 breaking: default quiet=false, DOTENV*CONFIG*\* env vars take precedence                                  |
 | **Learnings storage**      | JSON files per repo                                              | —                            | `~/.openreview/learnings/<org>-<repo>.json`                                                                   |
 | **Audit logs**             | JSON trace files                                                 | —                            | `~/.openreview/traces/<timestamp>-<pr>.json`                                                                  |
@@ -546,7 +546,7 @@ OPENREVIEW_HOME=~/.openreview # Base path for learnings + traces
 | Max files per review        | 100 (configurable via MAX_FILES)                             |
 | Zero data retention         | Code/diffs never persisted post-review                       |
 | Offline capability          | CLI works without server if LLM API is reachable             |
-| Node.js version             | LTS (24.x recommended, ≥ 20 supported)                       |
+| Node.js version             | LTS (24.x required)                                         |
 | GitHub Actions runner       | ubuntu-latest, macos-latest, windows-latest                  |
 
 ---

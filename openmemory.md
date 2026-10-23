@@ -12,7 +12,7 @@ open-review is an open-source, agentic code review tool. v1.6.0 runs fast and de
 
 **Repository:** github.com/scale-sync/open-review
 **Languages:** Go review engine; TypeScript 7 platform, CLI, and Action
-**Runtime:** Node.js ≥ 20
+**Runtime:** Node.js ≥ 24
 **Package manager:** pnpm 10.x (monorepo workspaces)
 
 ---

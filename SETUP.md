@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Git, Go 1.23+, Node.js 20+, and pnpm 10+
+- Git, Go 1.23+, Node.js 24+, and pnpm 10+
 - One supported model API key for a nonempty review: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GEMINI_API_KEY`
 
 ## Build from source
