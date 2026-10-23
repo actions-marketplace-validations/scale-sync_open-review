@@ -89,11 +89,11 @@ set `OPEN_REVIEW_BIN`.
 ### TypeScript / Node.js
 
 ```bash
-npm install open-review
+npm install @scalesync/open-review
 ```
 
 ```ts
-import { configureProvider, review } from 'open-review';
+import { configureProvider, review } from '@scalesync/open-review';
 
 await configureProvider({
   provider: 'anthropic',

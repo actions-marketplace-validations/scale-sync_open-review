@@ -83,8 +83,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         working-directory: sdk/typescript
         run: |
-          if npm view open-review@1.12.1 version >/dev/null 2>&1; then
-            echo 'open-review 1.12.1 is already published'
+          if npm view @scalesync/open-review@1.12.1 version >/dev/null 2>&1; then
+            echo '@scalesync/open-review 1.12.1 is already published'
           else
             npm publish --access public
           fi
