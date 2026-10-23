@@ -4,12 +4,20 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to publish
+        required: true
+        type: string
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -63,32 +71,47 @@ jobs:
       - name: Publish Rust SDK
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
-        run: cargo publish --manifest-path sdk/rust/Cargo.toml --token "$CARGO_REGISTRY_TOKEN"
+        run: |
+          if cargo info openreview-sdk@1.12.1 >/dev/null 2>&1; then
+            echo 'openreview-sdk 1.12.1 is already published'
+          else
+            cargo publish --manifest-path sdk/rust/Cargo.toml --token "$CARGO_REGISTRY_TOKEN"
+          fi
 
       - name: Publish TypeScript SDK
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm --dir sdk/typescript publish --access public --no-git-checks
+        working-directory: sdk/typescript
+        run: |
+          if npm view @openreview/sdk@1.12.1 version >/dev/null 2>&1; then
+            echo '@openreview/sdk 1.12.1 is already published'
+          else
+            npm publish --access public
+          fi
 
       - name: Publish Python SDK
         env:
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
           TWINE_USERNAME: __token__
-        run: python -m twine upload sdk/python/dist/*
+        run: |
+          if python -c 'import urllib.request; urllib.request.urlopen("https://pypi.org/pypi/openreview-sdk/1.12.1/json")' >/dev/null 2>&1; then
+            echo 'openreview-sdk 1.12.1 is already published'
+          else
+            python -m twine upload sdk/python/dist/*
+          fi
 
       - name: Release Go SDK through tagged module
         run: |
           go test ./sdk/go
-          test -n "$(git ls-remote --tags origin "refs/tags/${GITHUB_REF_NAME}" | awk '{print $1}')"
+          test -n "$(git ls-remote --tags origin "refs/tags/${RELEASE_TAG}" | awk '{print $1}')"
 
       - name: Build checksummed binary assets
-        if: startsWith(github.ref_name, 'v1.12.')
-        env:
-          RELEASE_VERSION: ${{ github.ref_name }}
-        run: bash integrations/release/build.sh "$RELEASE_VERSION"
+        if: startsWith(env.RELEASE_TAG, 'v1.12.')
+        run: RELEASE_VERSION="$RELEASE_TAG" bash integrations/release/build.sh "$RELEASE_TAG"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          body_path: _plan_docs/releases/${{ github.ref_name }}.md
+          tag_name: ${{ env.RELEASE_TAG }}
+          body_path: _plan_docs/releases/${{ env.RELEASE_TAG }}.md
           files: dist/release/*
