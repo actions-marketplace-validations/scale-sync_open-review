@@ -2,10 +2,10 @@
 
 [![CI](https://github.com/scale-sync/open-review/actions/workflows/ci.yml/badge.svg)](https://github.com/scale-sync/open-review/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![npm](https://img.shields.io/npm/v/%40scalesync%2Fopen-review?label=npm)](https://www.npmjs.com/package/@scalesync/open-review)
+[![npm downloads](https://img.shields.io/npm/dm/%40scalesync%2Fopen-review?label=npm%20downloads%2Fmonth)](https://www.npmjs.com/package/@scalesync/open-review)
 [![Go module](https://img.shields.io/github/go-mod/go-version/scale-sync/open-review?label=Go%20module)](https://pkg.go.dev/github.com/scale-sync/open-review)
-[![PyPI](https://img.shields.io/pypi/v/openreview-sdk?label=PyPI)](https://pypi.org/project/openreview-sdk/)
-[![crates.io](https://img.shields.io/crates/v/openreview-sdk?label=crates.io)](https://crates.io/crates/openreview-sdk)
+[![PyPI downloads](https://img.shields.io/pypi/dm/openreview-sdk?label=PyPI%20downloads%2Fmonth)](https://pypi.org/project/openreview-sdk/)
+[![crates.io downloads](https://img.shields.io/crates/d/openreview-sdk?label=crates.io%20downloads)](https://crates.io/crates/openreview-sdk)
 [![GitHub downloads](https://img.shields.io/github/downloads/scale-sync/open-review/total?label=GitHub%20downloads)](https://github.com/scale-sync/open-review/releases)
 
 Open-source, agentic code review for local Git changes, whole files, and GitHub
