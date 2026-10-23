@@ -63,7 +63,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: scale-sync/open-review/action@v1.12.0
+      - uses: scale-sync/open-review@v1.12.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
