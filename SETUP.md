@@ -51,7 +51,7 @@ The existing TypeScript CLI still reviews a GitHub pull request when provided a 
 node cli/dist/main.mjs review --url https://github.com/owner/repo/pull/123
 ```
 
-The GitHub Action lives in `action/` and includes a bundled adapter plus a Linux x64 Go executable. Use `scale-sync/open-review/action@v1.6.0` from a Linux x64 runner. It does not install dependencies when the event runs. Install Deno in an earlier workflow step to enable sandbox checks for deep review. A GitHub App installation token with Contents read and Pull requests read/write permissions may be passed through `github-token` instead of the workflow token. There is no npm, PyPI, or crates.io publication in this release; the Go CLI can be built from the public source tag.
+The GitHub Action lives in `action/` and includes a bundled adapter plus a Linux x64 Go executable. Use `scale-sync/open-review@v1.12.3` from a Linux x64 runner. It does not install dependencies when the event runs. Install Deno in an earlier workflow step to enable sandbox checks for deep review. A GitHub App installation token with Contents read and Pull requests read/write permissions may be passed through `github-token` instead of the workflow token. The public SDK links and agent plugin installation steps are in [`MARKETPLACES.md`](MARKETPLACES.md).
 
 ## Test and troubleshoot
 

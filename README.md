@@ -13,7 +13,19 @@ pull requests. OpenReview combines bounded repository context, configurable
 review depth, precise findings, resumable sessions, SARIF output, provider
 choice, and SDK access behind one Go review engine.
 
-**Latest release: `v1.12.3`** · SDK registries · GitHub Marketplace action · cross-platform binaries
+**Latest release: `v1.12.3`** · SDK registries · GitHub Marketplace action · agent plugins and skills
+
+## Distribution
+
+| Package or integration | Link |
+| --- | --- |
+| TypeScript SDK | [npmjs.com/@scalesync/open-review](https://www.npmjs.com/package/@scalesync/open-review) |
+| Python SDK | [pypi.org/project/openreview-sdk](https://pypi.org/project/openreview-sdk/) |
+| Rust SDK | [crates.io/crates/openreview-sdk](https://crates.io/crates/openreview-sdk) |
+| Go SDK | [pkg.go.dev/github.com/scale-sync/open-review/sdk/go](https://pkg.go.dev/github.com/scale-sync/open-review/sdk/go) |
+| Releases and binaries | [GitHub Releases](https://github.com/scale-sync/open-review/releases) |
+
+The shared `open-review` agent skill is packaged for [Codex/ChatGPT](.codex-plugin/plugin.json), [Claude Code](.claude-plugin/plugin.json), [Cursor](.cursor-plugin/plugin.json), and [Gemini CLI](gemini-extension.json). See [`MARKETPLACES.md`](MARKETPLACES.md) for installation and submission steps.
 
 ## Start from source
 

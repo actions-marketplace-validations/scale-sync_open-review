@@ -26,8 +26,7 @@ function readReleaseLedger(): Release[] {
       const [version, name = ''] = release.split(' — ');
 
       return { version, name, date, features, fixes, impact };
-    })
-    .reverse();
+    });
 }
 
 export const releases = readReleaseLedger();

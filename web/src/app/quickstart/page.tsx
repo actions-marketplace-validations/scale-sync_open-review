@@ -62,8 +62,11 @@ export default function Quickstart() {
           <Link href="/docs/github-action">
             GitHub Action guide <span aria-hidden="true">↗</span>
           </Link>
+          <Link href="/distribution">
+            SDKs and agent plugins <span aria-hidden="true">↗</span>
+          </Link>
           <p className="note-small">
-            Package registry installation is planned; this quick start builds from source.
+            SDK packages and the shared agent skill are available for installation.
           </p>
         </aside>
       </div>
