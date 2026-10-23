@@ -1,11 +1,11 @@
-# @openreview/sdk
+# open-review
 
 See [`COMMANDS.md`](../COMMANDS.md) for local setup, key rotation, and test commands.
 
 Typed Node client for contract v2. Install a compatible `open-review` binary on `PATH`, or set `OPEN_REVIEW_BIN` to its path. The package runs the Go CLI; it does not contain a review engine.
 
 ```ts
-import { review } from '@openreview/sdk';
+import { review } from 'open-review';
 const result = await review({ repo: '.', mode: 'workspace' });
 ```
 
@@ -17,7 +17,7 @@ and stores the key locally with mode `0600`.
 Rotate providers without editing config files:
 
 ```ts
-import { configureProvider } from '@openreview/sdk';
+import { configureProvider } from 'open-review';
 await configureProvider({ provider: 'anthropic', model: 'claude-sonnet-4-5', apiKey: process.env.ANTHROPIC_API_KEY! });
 ```
 

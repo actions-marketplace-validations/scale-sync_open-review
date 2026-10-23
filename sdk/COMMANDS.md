@@ -89,11 +89,11 @@ set `OPEN_REVIEW_BIN`.
 ### TypeScript / Node.js
 
 ```bash
-npm install @openreview/sdk
+npm install open-review
 ```
 
 ```ts
-import { configureProvider, review } from '@openreview/sdk';
+import { configureProvider, review } from 'open-review';
 
 await configureProvider({
   provider: 'anthropic',

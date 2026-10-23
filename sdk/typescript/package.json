@@ -1,5 +1,5 @@
 {
-  "name": "@openreview/sdk",
+  "name": "open-review",
   "version": "1.12.1",
   "description": "Typed Node client for the open-review Go engine",
   "license": "MIT",
