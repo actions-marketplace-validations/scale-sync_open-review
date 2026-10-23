@@ -6,6 +6,7 @@ as tag-only rather than inferred from commit dates.
 
 | Release | Date | Features | Fixes and enhancements | User impact |
 | --- | --- | --- | --- | --- |
+| `v1.12.1` — SDK registry publication | 2026-10-23 | Published the Rust, TypeScript, and Python SDKs to their public registries. | Added scoped npm publication, retry-safe registry checks, and tagged Go SDK verification. | Developers can install the SDKs from public package registries or the Go module. |
 | `v0.5.0` — local Git review | 2026-10-15 | Workspace, branch, and single-commit review modes. | Defined rename, deletion, merge, root-commit, and empty-worktree behavior. | Review local changes without a PR or model call for empty input. |
 | `v0.6.0` — visible review scope | 2026-10-15 | Full diff fidelity, include/exclude selection, coverage manifests, and preview. | Unsafe paths, binaries, generated files, and size limits are explicit skip reasons. | Users can see exactly what will be reviewed before spending model tokens. |
 | `v0.7.0` — Go fast review | 2026-10-15 | Go review engine, GitHub Action adapter, and PR/local conversation. | Added changed-line validation, bundled Action execution, and bounded context reads. | Faster, more predictable local and pull-request reviews. |
