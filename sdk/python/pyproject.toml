@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openreview-sdk"
-version = "1.11.0"
+version = "1.12.1"
 description = "Typed Python client for the open-review Go engine"
 readme = "README.md"
 requires-python = ">=3.10"

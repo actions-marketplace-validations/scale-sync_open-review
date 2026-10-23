@@ -19,6 +19,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          registry-url: https://registry.npmjs.org
 
       - uses: actions/setup-go@v5
         with:
@@ -28,6 +29,12 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Check packaged Action without dependencies
         run: GITHUB_EVENT_NAME=workflow_dispatch node action/dist/index.mjs
@@ -45,6 +52,34 @@ jobs:
       - run: go test ./...
       - run: bash integrations/ci/test.sh
       - run: go vet ./...
+
+      - name: Build SDK packages
+        run: |
+          pnpm --filter @openreview/sdk build
+          python -m pip install build twine
+          python -m build sdk/python
+          cargo package --manifest-path sdk/rust/Cargo.toml --allow-dirty
+
+      - name: Publish Rust SDK
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
+        run: cargo publish --manifest-path sdk/rust/Cargo.toml --token "$CARGO_REGISTRY_TOKEN"
+
+      - name: Publish TypeScript SDK
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm --dir sdk/typescript publish --access public --no-git-checks
+
+      - name: Publish Python SDK
+        env:
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          TWINE_USERNAME: __token__
+        run: python -m twine upload sdk/python/dist/*
+
+      - name: Release Go SDK through tagged module
+        run: |
+          go test ./sdk/go
+          test -n "$(git ls-remote --tags origin "refs/tags/${GITHUB_REF_NAME}" | awk '{print $1}')"
 
       - name: Build checksummed binary assets
         if: startsWith(github.ref_name, 'v1.12.')

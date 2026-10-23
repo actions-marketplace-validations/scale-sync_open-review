@@ -1,6 +1,6 @@
 {
   "name": "@openreview/sdk",
-  "version": "1.11.0",
+  "version": "1.12.1",
   "description": "Typed Node client for the open-review Go engine",
   "license": "MIT",
   "type": "module",

@@ -1,6 +1,6 @@
 [package]
 name = "openreview-sdk"
-version = "1.12.0"
+version = "1.12.1"
 edition = "2021"
 license = "MIT"
 description = "Typed Rust client for the open-review Go engine"
