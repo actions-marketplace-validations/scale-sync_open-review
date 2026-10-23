@@ -6,6 +6,7 @@ as tag-only rather than inferred from commit dates.
 
 | Release | Date | Features | Fixes and enhancements | User impact |
 | --- | --- | --- | --- | --- |
+| `v1.12.3` — Marketplace name fix | 2026-10-23 | Added a globally unique Marketplace display name: `Open Review by ScaleSync`. | Kept the repository path and action entrypoint unchanged. | GitHub can validate and publish the action to the Marketplace. |
 | `v1.12.2` — GitHub Marketplace action | 2026-10-23 | Added root-level Marketplace metadata for the GitHub Action. | Preserved the existing nested action path while adding `scale-sync/open-review@v1.12.2`. | Teams can publish and consume OpenReview directly as a GitHub Marketplace action. |
 | `v1.12.1` — SDK registry publication | 2026-10-23 | Published the Rust, TypeScript, and Python SDKs to their public registries. | Added scoped npm publication, retry-safe registry checks, and tagged Go SDK verification. | Developers can install the SDKs from public package registries or the Go module. |
 | `v0.5.0` — local Git review | 2026-10-15 | Workspace, branch, and single-commit review modes. | Defined rename, deletion, merge, root-commit, and empty-worktree behavior. | Review local changes without a PR or model call for empty input. |
