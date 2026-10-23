@@ -1,0 +1,9 @@
+{
+  "name": "scale-sync-open-review",
+  "version": "1.12.3",
+  "description": "Run structured, agent-assisted code reviews against Git changes and report actionable findings.",
+  "author": "ScaleSync",
+  "homepage": "https://github.com/scale-sync/open-review",
+  "repository": "https://github.com/scale-sync/open-review",
+  "license": "MIT"
+}

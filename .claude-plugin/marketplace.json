@@ -1,0 +1,16 @@
+{
+  "name": "scale-sync-open-review",
+  "owner": {
+    "name": "ScaleSync"
+  },
+  "description": "Agent-assisted code review for Git changes.",
+  "plugins": [
+    {
+      "name": "scale-sync-open-review",
+      "source": "./",
+      "description": "Run structured, agent-assisted code reviews against Git changes and report actionable findings.",
+      "version": "1.12.3",
+      "license": "MIT"
+    }
+  ]
+}

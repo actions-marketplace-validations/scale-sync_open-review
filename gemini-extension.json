@@ -1,0 +1,5 @@
+{
+  "name": "open-review",
+  "version": "1.12.3",
+  "description": "Run structured, agent-assisted code reviews against Git changes and report actionable findings."
+}

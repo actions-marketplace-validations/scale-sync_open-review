@@ -20,6 +20,7 @@ if [[ ! -d "$target/.git" ]]; then
   exit 2
 fi
 source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+skill_source="$source_dir/../../skills/open-review/SKILL.md"
 mkdir -p "$target/$folder"
-cp "$source_dir/open-review/SKILL.md" "$target/$folder/SKILL.md"
+cp "$skill_source" "$target/$folder/SKILL.md"
 echo "$target/$folder/SKILL.md"

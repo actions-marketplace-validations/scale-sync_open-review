@@ -1,0 +1,26 @@
+{
+  "name": "scale-sync-open-review",
+  "version": "1.12.3",
+  "description": "Run structured, agent-assisted code reviews against Git changes and report actionable findings.",
+  "author": {
+    "name": "ScaleSync"
+  },
+  "homepage": "https://github.com/scale-sync/open-review",
+  "repository": "https://github.com/scale-sync/open-review",
+  "license": "MIT",
+  "keywords": ["code-review", "pull-request", "security", "github"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Open Review",
+    "shortDescription": "Review Git changes with structured findings.",
+    "longDescription": "Uses the open-review Go CLI to preview selected changes, delegate a structured review to the host agent, and return only actionable findings with precise locations.",
+    "developerName": "ScaleSync",
+    "category": "Developer Tools",
+    "websiteURL": "https://github.com/scale-sync/open-review",
+    "defaultPrompt": [
+      "Use Open Review to review my current changes.",
+      "Use Open Review to review this branch against main.",
+      "Use Open Review to scan this file for actionable bugs."
+    ]
+  }
+}

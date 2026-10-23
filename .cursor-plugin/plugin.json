@@ -1,0 +1,15 @@
+{
+  "name": "scale-sync-open-review",
+  "displayName": "Open Review",
+  "version": "1.12.3",
+  "description": "Run structured, agent-assisted code reviews against Git changes and report actionable findings.",
+  "author": {
+    "name": "ScaleSync"
+  },
+  "homepage": "https://github.com/scale-sync/open-review",
+  "repository": "https://github.com/scale-sync/open-review",
+  "license": "MIT",
+  "keywords": ["code-review", "pull-request", "security", "github"],
+  "category": "developer-tools",
+  "skills": "./skills/"
+}
