@@ -16,7 +16,10 @@
     "longDescription": "Uses the open-review Go CLI to preview selected changes, delegate a structured review to the host agent, and return only actionable findings with precise locations.",
     "developerName": "ScaleSync",
     "category": "Developer Tools",
+    "capabilities": [],
     "websiteURL": "https://github.com/scale-sync/open-review",
+    "logo": "./assets/open-review-mark.svg",
+    "composerIcon": "./assets/open-review-mark.svg",
     "defaultPrompt": [
       "Use Open Review to review my current changes.",
       "Use Open Review to review this branch against main.",
