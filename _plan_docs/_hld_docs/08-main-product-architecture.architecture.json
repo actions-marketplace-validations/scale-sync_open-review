@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "OpenReview Product Architecture",
+    "output": "08-main-product-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/scale-sync/open-review",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "9bfc27eadb1f7ea54c19bc9816cb68a46675c66c"
+    },
+    "views": [
+      { "id": "review-path", "label": "Review path", "focus": ["developer", "github", "action", "engine", "provider"], "note": "Follow a pull request from GitHub through the Action and review engine to a model provider." },
+      { "id": "local-path", "label": "Local developer path", "focus": ["developer", "cli", "engine", "sessions"], "note": "See how local CLI reviews persist private sessions and findings." },
+      { "id": "distribution", "label": "SDK distribution", "focus": ["engine", "sdks", "registries", "site"], "note": "See the shared engine boundary and the public SDK and documentation surfaces." }
+    ]
+  },
+  "components": [
+    { "id": "developer", "type": "external", "label": "Developer", "sublabel": "Local checkout / PR author", "pos": [40, 290], "size": [150, 66], "sources": [{ "path": "README.md", "label": "entry points" }] },
+    { "id": "github", "type": "external", "label": "GitHub", "sublabel": "Pull requests + comments", "pos": [40, 120], "size": [150, 66], "tag": "event source" },
+    { "id": "action", "type": "cloud", "label": "GitHub Action", "sublabel": "action/ adapter", "pos": [270, 120], "size": [160, 66], "sources": [{ "path": "action.yml", "label": "contract" }, { "path": "action/src/index.ts", "label": "handler" }] },
+    { "id": "cli", "type": "frontend", "label": "OpenReview CLI", "sublabel": "review / ask / serve", "pos": [270, 290], "size": [160, 66], "sources": [{ "path": "cmd/open-review/main.go", "label": "Go CLI" }] },
+    { "id": "engine", "type": "backend", "label": "Go Review Engine", "sublabel": "context, review, findings", "pos": [510, 205], "size": [180, 72], "tag": "core", "sources": [{ "path": "review/review.go", "label": "review pipeline" }, { "path": "core/src/index.ts", "label": "shared contracts" }] },
+    { "id": "provider", "type": "external", "label": "Model Providers", "sublabel": "OpenAI / Anthropic / Gemini", "pos": [790, 120], "size": [180, 66] },
+    { "id": "sessions", "type": "database", "label": "Local Sessions", "sublabel": "events, traces, triage", "pos": [790, 290], "size": [180, 66], "sources": [{ "path": "review/internal/session/store.go", "label": "session store" }] },
+    { "id": "sdks", "type": "backend", "label": "SDK Packages", "sublabel": "TypeScript / Python / Rust / Go", "pos": [510, 430], "size": [180, 66], "sources": [{ "path": "sdk/rust/README.md", "label": "published SDKs" }] },
+    { "id": "registries", "type": "cloud", "label": "Package Registries", "sublabel": "npm / PyPI / crates.io / Go", "pos": [790, 430], "size": [180, 66] },
+    { "id": "site", "type": "cloud", "label": "Project Website", "sublabel": "docs, releases, benchmarks", "pos": [1030, 290], "size": [180, 66], "sources": [{ "path": "web/package.json", "label": "website" }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "OpenReview repository", "wraps": ["action", "cli", "engine", "sessions", "sdks", "site"] }
+  ],
+  "connections": [
+    { "id": "github-action", "from": "github", "to": "action", "label": "workflow event", "variant": "emphasis" },
+    { "id": "developer-cli", "from": "developer", "to": "cli", "label": "local command", "variant": "emphasis" },
+    { "id": "action-engine", "from": "action", "to": "engine", "label": "review request", "fromSide": "right", "toSide": "top" },
+    { "id": "cli-engine", "from": "cli", "to": "engine", "label": "review / ask", "fromSide": "right", "toSide": "left" },
+    { "id": "engine-provider", "from": "engine", "to": "provider", "label": "model call", "variant": "security" },
+    { "id": "engine-sessions", "from": "engine", "to": "sessions", "label": "persist findings", "variant": "dashed" },
+    { "id": "engine-sdks", "from": "engine", "to": "sdks", "label": "shared contracts", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "sdks-registries", "from": "sdks", "to": "registries", "label": "publish packages", "variant": "dashed" },
+    { "id": "site-registries", "from": "site", "to": "registries", "label": "link to packages", "variant": "dashed", "fromSide": "left", "toSide": "right" },
+    { "id": "github-result", "from": "engine", "to": "github", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Review surfaces", "items": ["GitHub Action handles PR automation", "CLI handles local review and codebase-aware ask", "One Go engine produces validated findings"] },
+    { "dot": "emerald", "title": "State and distribution", "items": ["Sessions and traces remain local", "SDKs share the product contracts", "Registries and website expose public integrations"] },
+    { "dot": "rose", "title": "Trust boundary", "items": ["Provider credentials enter at runtime", "Review output is posted back to GitHub only when requested", "Repository evidence is pinned to the documented revision"] }
+  ]
+}
