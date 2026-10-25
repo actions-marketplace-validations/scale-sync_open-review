@@ -22,7 +22,7 @@
 
 The roadmap covers local Git review, deterministic coverage, bounded cost, accurate positions, related-file grouping, path-aware rules, controlled context tools, resume, scans, session inspection, protocols, editor integrations, and four SDKs. Preserve PR conversation with citations and suggestions, explicit sandboxed deep review, linter fusion, and GitHub review-state updates. Durable feedback learning is scheduled later because the current local JSON store is not reliably connected to review inputs or ephemeral Action runners.
 
-One release contains exactly three features. The version sequence and individual release plans live in the [release roadmap](../_plan_docs/Go_Dominant_Release_Plan.md).
+One release contains exactly three features. The version sequence and individual release plans live in the [release roadmap](../_feature_docs/roadmap/Go_Dominant_Release_Plan.md).
 
 ## Publication
 
